@@ -1,4 +1,4 @@
-import { Request, Response } from "express";
+import { Request, Response, NextFunction } from "express";
 import Client from "../models/clientModel";
 import Otp from "../models/Otp";
 import JobApplication from "../models/Application";
@@ -7,14 +7,31 @@ import { sendOtpMail } from "../utils/mailer";
 import { generateToken } from "../utils/jwt";
 import jwt from "jsonwebtoken";
 
+// Extend Express Request to include user property
+declare global {
+  namespace Express {
+    interface Request {
+      user?: {
+        id: string;
+        role: string;
+        email?: string;
+      };
+    }
+  }
+}
+
 // 🔐 Middleware to protect routes
-export const protect = (req: Request, res: Response, next: Function) => {
-  const token = req.cookies.token;
+export const protect = (req: Request, res: Response, next: NextFunction) => {
+  const token = req.cookies?.token;
   if (!token) return res.status(401).json({ error: "Unauthorized" });
 
   try {
-    const decoded = jwt.verify(token, process.env.JWT_SECRET!);
-    (req as any).user = decoded;
+    const decoded = jwt.verify(token, process.env.JWT_SECRET!) as {
+      id: string;
+      role: string;
+      email?: string;
+    };
+    req.user = decoded;
     next();
   } catch {
     return res.status(401).json({ error: "Invalid or expired token" });
@@ -73,7 +90,8 @@ export const createUser = async (req: Request, res: Response) => {
     await user.save();
     await Otp.deleteOne({ email });
 
-    const token = generateToken(user._id.toString(), "client");
+    // FIX: pass email to match loginUser signature
+    const token = generateToken(user._id.toString(), "client", user.email);
 
     res.cookie("token", token, {
       httpOnly: true,
@@ -108,7 +126,7 @@ export const loginUser = async (req: Request, res: Response) => {
     }
 
     await Otp.deleteOne({ email });
-   const token = generateToken(user._id.toString(), "client", user.email);
+    const token = generateToken(user._id.toString(), "client", user.email);
 
     res.cookie("token", token, {
       httpOnly: true,
@@ -154,7 +172,11 @@ export const getUser = async (req: Request, res: Response) => {
 export const updateUser = async (req: Request, res: Response) => {
   try {
     const { profile } = req.body;
-    const userId = (req as any).user.id;  // FIXED here
+    const userId = req.user?.id;
+
+    if (!userId) {
+      return res.status(401).json({ error: "Unauthorized" });
+    }
 
     const updatedUser = await Client.findByIdAndUpdate(
       userId,
@@ -172,9 +194,14 @@ export const updateUser = async (req: Request, res: Response) => {
     res.status(500).json({ error: "Profile update failed" });
   }
 };
-export const getProfile = async (req, res) => {
+
+export const getProfile = async (req: Request, res: Response) => {
   try {
-    const userId = req.user.id; // From authMiddleware
+    const userId = req.user?.id;
+
+    if (!userId) {
+      return res.status(401).json({ error: "Unauthorized" });
+    }
 
     const user = await Client.findById(userId).select(
       "name gender email avatar profile"
@@ -184,13 +211,12 @@ export const getProfile = async (req, res) => {
       return res.status(404).json({ error: "User not found" });
     }
 
-    res.status(200).json(user); // Now includes profile
+    res.status(200).json(user);
   } catch (err) {
     console.error("Error fetching profile:", err);
     res.status(500).json({ error: "Server error" });
   }
 };
-
 
 // 👥 Get all clients (for admin use)
 export const getAllUsers = async (req: Request, res: Response) => {
@@ -206,7 +232,8 @@ export const getAllUsers = async (req: Request, res: Response) => {
 // 📌 Client's applied jobs
 export const getClientApplications = async (req: Request, res: Response) => {
   try {
-    const { userId, role } = (req as any).user;
+    const userId = req.user?.id;
+    const role = req.user?.role;
 
     if (role !== "client") {
       return res.status(403).json({ error: "Only clients can view their applications" });
