@@ -74,17 +74,18 @@ export const loginFreelancer = async (req: Request, res: Response) => {
   await Otp.deleteOne({ email });
 
   const userId = getIdString(user._id);
-  const token = generateToken(userId, user.role, user.email); // ✅ Pass 3 args
+  const token = generateToken(userId, user.role, user.email); // ✅ 3 args
 
   res.cookie("token", token, {
     httpOnly: true,
-    secure: process.env.NODE_ENV === "production",
-    sameSite: "lax",
-    maxAge: 7 * 24 * 60 * 60 * 1000,
+    secure: process.env.NODE_ENV === "production", // ✅ must be true in prod HTTPS
+    sameSite: process.env.NODE_ENV === "production" ? "none" : "lax", // ✅ cross-domain
+    maxAge: 7 * 24 * 60 * 60 * 1000, // 7 days
   });
 
   return res.status(200).json({ message: "Login successful", user, token });
 };
+
 
 // Logout
 export const logoutFreelancer = async (_req: Request, res: Response) => {
