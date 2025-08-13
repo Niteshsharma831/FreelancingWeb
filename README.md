@@ -68,7 +68,7 @@ FreelancingWeb/
 
 ### 1️⃣ Clone the Repository
 ```bash
-git clone https://github.com/your-github/FreelancingWeb.git
+git clone https://github.com/Niteshsharma831/FreelancingWeb/tree/master
 cd FreelancingWeb
 ````
 
