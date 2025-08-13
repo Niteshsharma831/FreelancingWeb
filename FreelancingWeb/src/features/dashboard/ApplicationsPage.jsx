@@ -31,6 +31,7 @@ const ApplicationsPage = () => {
     setLoadingStatus(applicationId + newStatus);
     try {
       await axios.put(
+        // updated API
         `https://freelancingweb-plac.onrender.com/api/applications/update-status/${applicationId}`,
         { status: newStatus },
         { withCredentials: true }
