@@ -11,9 +11,10 @@ const app = express();
 app.use(express.json());
 app.use(cookieParser());
 
+// ✅ Allow both local and deployed frontend
 app.use(
   cors({
-    origin: "http://localhost:5173",
+    origin: ["http://localhost:5173", "https://hireonworkbridge.vercel.app"],
     credentials: true,
   })
 );
