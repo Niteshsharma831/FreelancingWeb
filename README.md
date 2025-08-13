@@ -1,7 +1,6 @@
 
 # Freelancing & Job-Seeking Platform
 
-![MERN Stack](./assets/mern-stack.png)
 
 A **full-stack MERN** (MongoDB, Express.js, React.js, Node.js) application for connecting **freelancers** and **clients**.  
 Features include **OTP-based authentication**, **role-based dashboards**, **job posting**, **applications management**, and **admin control**.
@@ -69,7 +68,7 @@ FreelancingWeb/
 
 ### 1️⃣ Clone the Repository
 ```bash
-git clone https://github.com/your-github/FreelancingWeb.git
+git clone https://github.com/Niteshsharma831/FreelancingWeb/tree/master
 cd FreelancingWeb
 ````
 
@@ -129,6 +128,9 @@ npm run dev
 * Use a **real email service** for OTP (like Gmail SMTP).
 
 ---
+<p align="center">
+  <img src="./FreelancingWeb/src/assets/mern-stack.png" alt="MERN Stack" width="500">
+</p>
 
 ## 📜 License
 
