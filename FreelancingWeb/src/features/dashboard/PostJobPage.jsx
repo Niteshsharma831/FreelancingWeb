@@ -28,14 +28,13 @@ const Textarea = ({ rows = 3, ...props }) => (
 
 const JobPostForm = () => {
   const [loading, setLoading] = useState(false);
-  // All required fields, including those with comma-separated input
   const [formData, setFormData] = useState({
     title: "",
     companyName: "",
     companyWebsite: "",
     companyLogo: "",
-    jobType: "Job", // "Job" or "Internship"
-    jobMode: "Remote", // "Remote", "Hybrid", "Onsite"
+    jobType: "Job",
+    jobMode: "Remote",
     location: "",
     category: "",
     duration: "",
@@ -46,40 +45,34 @@ const JobPostForm = () => {
     contactEmail: "",
     description: "",
     details: "",
-    skillsRequired: "", // comma separated (e.g., "JavaScript,React")
-    responsibilities: "", // comma separated
-    requirements: "", // comma separated
-    preferredQualifications: "", // comma separated
-    perks: "", // comma separated
+    skillsRequired: "",
+    responsibilities: "",
+    requirements: "",
+    preferredQualifications: "",
+    perks: "",
   });
 
-  // Handle changes for simple inputs
   const handleChange = (e) => {
     const { name, value } = e.target;
     setFormData((prev) => ({ ...prev, [name]: value }));
   };
 
-  // Parse comma-separated string into an array (trimming spaces)
   const parseToArray = (str) =>
     str
       .split(",")
       .map((s) => s.trim())
       .filter((s) => s !== "");
 
-  // Basic form validation: check required fields
   const validateForm = () => {
     const {
       title,
       companyName,
       location,
       duration,
-      jobType,
-      jobMode,
       description,
       skillsRequired,
       contactEmail,
-      // For Job type, ctc must be provided;
-      // for Internship, stipend must be provided.
+      jobType,
       ctc,
       stipend,
     } = formData;
@@ -107,13 +100,12 @@ const JobPostForm = () => {
     return true;
   };
 
-  // Form submission handler
   const handleSubmit = async (e) => {
     e.preventDefault();
-
     if (!validateForm()) return;
 
     setLoading(true);
+
     try {
       const payload = {
         ...formData,
@@ -122,18 +114,21 @@ const JobPostForm = () => {
         requirements: parseToArray(formData.requirements),
         preferredQualifications: parseToArray(formData.preferredQualifications),
         perks: parseToArray(formData.perks),
-        // Convert numeric fields
         stipend: formData.stipend ? Number(formData.stipend) : undefined,
         ctc: formData.ctc ? Number(formData.ctc) : undefined,
         budget: formData.budget ? Number(formData.budget) : undefined,
       };
 
       await api.post("/api/jobs/create", payload, {
-        withCredentials: true,
+        withCredentials: true, // ✅ ensures cookie is sent
+        headers: {
+          "Content-Type": "application/json",
+        },
       });
+
       alert("Job posted successfully!");
 
-      // Reset form after success
+      // Reset form
       setFormData({
         title: "",
         companyName: "",
@@ -158,8 +153,11 @@ const JobPostForm = () => {
         perks: "",
       });
     } catch (err) {
-      console.error("Error:", err);
-      alert(err?.response?.data?.error || "Failed to post job");
+      console.error(err);
+      alert(
+        err?.response?.data?.error ||
+          "Failed to post job. Make sure you are logged in."
+      );
     } finally {
       setLoading(false);
     }
@@ -169,7 +167,7 @@ const JobPostForm = () => {
     <div className="max-w-5xl mx-auto p-6 bg-white shadow rounded">
       <h2 className="text-2xl font-bold mb-4">Post a Job</h2>
       <form onSubmit={handleSubmit} className="space-y-6">
-        {/* Row 1: Title, Company Name, Location */}
+        {/* Row 1 */}
         <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
           <div>
             <Label text="Job Title" required />
@@ -197,7 +195,7 @@ const JobPostForm = () => {
           </div>
         </div>
 
-        {/* Row 2: Company Website, Company Logo, Category */}
+        {/* Row 2 */}
         <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
           <div>
             <Label text="Company Website" />
@@ -225,7 +223,7 @@ const JobPostForm = () => {
           </div>
         </div>
 
-        {/* Row 3: Job Type, Job Mode, Duration */}
+        {/* Row 3 */}
         <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
           <div>
             <Label text="Job Type" required />
@@ -262,7 +260,7 @@ const JobPostForm = () => {
           </div>
         </div>
 
-        {/* Row 4: Stipend / CTC and Budget */}
+        {/* Row 4 */}
         <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
           {formData.jobType === "Internship" && (
             <div>
@@ -297,7 +295,7 @@ const JobPostForm = () => {
           </div>
         </div>
 
-        {/* Row 5: Application Deadline and Contact Email */}
+        {/* Row 5 */}
         <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
           <div>
             <Label text="Application Deadline" required />
@@ -319,7 +317,7 @@ const JobPostForm = () => {
           </div>
         </div>
 
-        {/* Row 6: Skills Required */}
+        {/* Row 6: Skills */}
         <div>
           <Label text="Skills Required (comma separated)" required />
           <Input
