@@ -172,13 +172,13 @@ const Navbar = ({ user: propUser, onLogout }) => {
                     </>
                   ) : (
                     <>
-                      <Link
+                      {/* <Link
                         to="/register/student"
                         onClick={closeMenus}
                         className="block px-4 py-2 hover:bg-blue-50 transition"
                       >
                         Register as Student
-                      </Link>
+                      </Link> */}
                       <Link
                         to="/register/recruiter"
                         onClick={closeMenus}
@@ -281,13 +281,13 @@ const Navbar = ({ user: propUser, onLogout }) => {
             </>
           ) : (
             <>
-              <Link
+              {/* <Link
                 to="/register/student"
                 onClick={closeMenus}
                 className="block py-1 text-gray-700 hover:bg-blue-50"
               >
                 Register as Student
-              </Link>
+              </Link> */}
               <Link
                 to="/register/recruiter"
                 onClick={closeMenus}

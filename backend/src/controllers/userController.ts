@@ -90,7 +90,6 @@ export const createUser = async (req: Request, res: Response) => {
     await user.save();
     await Otp.deleteOne({ email });
 
-    // FIX: pass email to match loginUser signature
     const token = generateToken(user._id.toString(), "client", user.email);
 
     res.cookie("token", token, {
@@ -111,14 +110,10 @@ export const createUser = async (req: Request, res: Response) => {
 export const loginUser = async (req: Request, res: Response) => {
   try {
     const { email, otp } = req.body;
-    if (!email || !otp) {
-      return res.status(400).json({ error: "Email and OTP required" });
-    }
+    if (!email || !otp) return res.status(400).json({ error: "Email and OTP required" });
 
     const user = await Client.findOne({ email });
-    if (!user) {
-      return res.status(404).json({ error: "Client not found" });
-    }
+    if (!user) return res.status(404).json({ error: "Client not found" });
 
     const otpRecord = await Otp.findOne({ email });
     if (!otpRecord || otpRecord.otp !== otp || otpRecord.expiresAt < new Date()) {
@@ -152,14 +147,10 @@ export const logoutUser = (req: Request, res: Response) => {
 export const getUser = async (req: Request, res: Response) => {
   try {
     const { email } = req.query;
-    if (!email || typeof email !== "string") {
-      return res.status(400).json({ error: "Email is required" });
-    }
+    if (!email || typeof email !== "string") return res.status(400).json({ error: "Email is required" });
 
     const user = await Client.findOne({ email });
-    if (!user) {
-      return res.status(404).json({ error: "User not found" });
-    }
+    if (!user) return res.status(404).json({ error: "User not found" });
 
     return res.status(200).json({ user });
   } catch (error) {
@@ -173,10 +164,7 @@ export const updateUser = async (req: Request, res: Response) => {
   try {
     const { profile } = req.body;
     const userId = req.user?.id;
-
-    if (!userId) {
-      return res.status(401).json({ error: "Unauthorized" });
-    }
+    if (!userId) return res.status(401).json({ error: "Unauthorized" });
 
     const updatedUser = await Client.findByIdAndUpdate(
       userId,
@@ -184,37 +172,12 @@ export const updateUser = async (req: Request, res: Response) => {
       { new: true }
     );
 
-    if (!updatedUser) {
-      return res.status(404).json({ error: "User not found" });
-    }
+    if (!updatedUser) return res.status(404).json({ error: "User not found" });
 
     return res.status(200).json({ message: "Profile updated", user: updatedUser });
   } catch (error) {
     console.error("Update Profile Error:", error);
     res.status(500).json({ error: "Profile update failed" });
-  }
-};
-
-export const getProfile = async (req: Request, res: Response) => {
-  try {
-    const userId = req.user?.id;
-
-    if (!userId) {
-      return res.status(401).json({ error: "Unauthorized" });
-    }
-
-    const user = await Client.findById(userId).select(
-      "name gender email avatar profile"
-    );
-
-    if (!user) {
-      return res.status(404).json({ error: "User not found" });
-    }
-
-    res.status(200).json(user);
-  } catch (err) {
-    console.error("Error fetching profile:", err);
-    res.status(500).json({ error: "Server error" });
   }
 };
 
@@ -234,10 +197,7 @@ export const getClientApplications = async (req: Request, res: Response) => {
   try {
     const userId = req.user?.id;
     const role = req.user?.role;
-
-    if (role !== "client") {
-      return res.status(403).json({ error: "Only clients can view their applications" });
-    }
+    if (role !== "client") return res.status(403).json({ error: "Only clients can view their applications" });
 
     const applications = await JobApplication.find({ clientId: userId })
       .populate("jobId", "title description budget duration category")
@@ -256,13 +216,27 @@ export const getUserById = async (req: Request, res: Response) => {
     const userId = req.params.id;
     const user = await Client.findById(userId).select("-password");
 
-    if (!user) {
-      return res.status(404).json({ error: "User not found" });
-    }
+    if (!user) return res.status(404).json({ error: "User not found" });
 
     res.status(200).json(user);
   } catch (error) {
     console.error("Get User By ID Error:", error);
     res.status(500).json({ error: "Failed to retrieve user" });
+  }
+};
+
+// 👤 Get own profile
+export const getProfile = async (req: Request, res: Response) => {
+  try {
+    const userId = req.user?.id;
+    if (!userId) return res.status(401).json({ error: "Unauthorized" });
+
+    const user = await Client.findById(userId).select("name gender email avatar profile");
+    if (!user) return res.status(404).json({ error: "User not found" });
+
+    res.status(200).json(user);
+  } catch (err) {
+    console.error("Error fetching profile:", err);
+    res.status(500).json({ error: "Server error" });
   }
 };
