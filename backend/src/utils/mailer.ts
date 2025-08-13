@@ -59,7 +59,7 @@ export const sendOtpMail = async (email: string, otp: string) => {
               <li>✅ Connect with Clients Globally</li>
               <li>✅ Resume Builder + Skill Match</li>
             </ul>
-            <a href="https://workbridge.in" style="display: inline-block; background-color: #1d4ed8; color: #ffffff; padding: 12px 24px; border-radius: 6px; font-weight: 600; text-decoration: none; margin-top: 10px;">
+            <a href="https://hireonworkbridge.vercel.app/" style="display: inline-block; background-color: #1d4ed8; color: #ffffff; padding: 12px 24px; border-radius: 6px; font-weight: 600; text-decoration: none; margin-top: 10px;">
               Explore WorkBridge
             </a>
           </td>

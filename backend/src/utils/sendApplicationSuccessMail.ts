@@ -38,10 +38,10 @@ export const sendApplicationSuccessMail = async (
 
         <!-- Buttons -->
         <div style="text-align:center;">
-          <a href="https://yourapp.com/dashboard" style="display:inline-block;margin:8px;background:#2563eb;color:white;padding:12px 24px;border-radius:6px;text-decoration:none;font-weight:bold;box-shadow:0 2px 6px rgba(0,0,0,0.15);">
+          <a href="https://hireonworkbridge.vercel.app/" style="display:inline-block;margin:8px;background:#2563eb;color:white;padding:12px 24px;border-radius:6px;text-decoration:none;font-weight:bold;box-shadow:0 2px 6px rgba(0,0,0,0.15);">
             🚀 Go to Dashboard
           </a><br/>
-          <a href="https://yourapp.com/jobs" style="display:inline-block;margin:8px;background:#10b981;color:white;padding:12px 24px;border-radius:6px;text-decoration:none;font-weight:bold;box-shadow:0 2px 6px rgba(0,0,0,0.15);">
+          <a href="https://hireonworkbridge.vercel.app/alljobs" style="display:inline-block;margin:8px;background:#10b981;color:white;padding:12px 24px;border-radius:6px;text-decoration:none;font-weight:bold;box-shadow:0 2px 6px rgba(0,0,0,0.15);">
             🔍 Explore More Jobs
           </a><br/>
           <a href="mailto:its.freelancervibe@gmail.com" style="display:inline-block;margin:8px;background:#f97316;color:white;padding:12px 24px;border-radius:6px;text-decoration:none;font-weight:bold;box-shadow:0 2px 6px rgba(0,0,0,0.15);">
