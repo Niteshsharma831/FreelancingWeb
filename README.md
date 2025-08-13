@@ -1,8 +1,6 @@
 
 # Freelancing & Job-Seeking Platform
 
-![MERN Stack](./frontend/src/assets/mern-stack.png)
-
 
 A **full-stack MERN** (MongoDB, Express.js, React.js, Node.js) application for connecting **freelancers** and **clients**.  
 Features include **OTP-based authentication**, **role-based dashboards**, **job posting**, **applications management**, and **admin control**.
@@ -131,7 +129,7 @@ npm run dev
 
 ---
 <p align="center">
-  <img src="./frontend/src/assets/mern-stack.png" alt="MERN Stack" width="500">
+  <img src="./FreelancingWeb/src/assets/mern-stack.png" alt="MERN Stack" width="500">
 </p>
 
 ## 📜 License
