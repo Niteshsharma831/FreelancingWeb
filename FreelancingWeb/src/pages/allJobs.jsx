@@ -24,9 +24,7 @@ const JobPage = () => {
           token
             ? axios.get(
                 "http://localhost:5000/api/applications/my-applications",
-                {
-                  headers: { Authorization: `Bearer ${token}` },
-                }
+                { headers: { Authorization: `Bearer ${token}` } }
               )
             : Promise.resolve({ data: [] }),
         ]);
@@ -49,10 +47,14 @@ const JobPage = () => {
 
   const handleApplyClick = (job) => {
     if (!token) {
-      toast.info("Please log in as a client to apply.");
-      setTimeout(() => {
-        window.location.href = "/login";
-      }, 2000);
+      toast.info("Please log in to apply.");
+      setTimeout(() => navigate("/login"), 1500);
+      return;
+    }
+
+    const isSmallScreen = window.innerWidth < 1024; // Tailwind lg breakpoint
+    if (isSmallScreen) {
+      navigate(`/job/${job._id}`);
       return;
     }
 
@@ -155,17 +157,11 @@ const JobPage = () => {
                   <FaClock className="text-purple-500" /> Duration:{" "}
                   {job.duration}
                 </div>
-
-                {/* Updated budget section - shows stipend or CTC */}
                 <div className="text-gray-600 text-sm mb-4 flex items-center gap-2">
-                  <FaMoneyBillAlt className="text-green-500" />
-                  {job.jobType === "Internship" ? (
-                    <>Stipend: ₹{job.stipend}</>
-                  ) : job.jobType === "Job" ? (
-                    <>CTC: ₹{job.ctc}</>
-                  ) : (
-                    "Budget not specified"
-                  )}
+                  <FaMoneyBillAlt className="text-green-500" />{" "}
+                  {job.jobType === "Internship"
+                    ? `Stipend: ₹${job.stipend}`
+                    : `CTC: ₹${job.ctc}`}
                 </div>
 
                 {alreadyApplied && (
@@ -198,22 +194,13 @@ const JobPage = () => {
           })}
         </div>
 
+        {/* Right-side proposal panel only on large screens */}
         {expandedJob && (
           <div className="lg:w-1/3">
             <div className="sticky top-6 bg-white border border-gray-300 p-6 rounded-xl shadow-xl">
               <h2 className="text-xl font-bold text-gray-800 mb-3">
                 ✍️ Apply for: {expandedJob.title}
               </h2>
-
-              <p className="text-sm text-gray-700 mb-3">
-                📧 Send your resume to{" "}
-                <a
-                  href="mailto:its.freelancervive@gmail.com"
-                  className="font-medium text-indigo-600 hover:underline"
-                >
-                  its.freelancervive@gmail.com
-                </a>
-              </p>
 
               <form onSubmit={submitProposal}>
                 <textarea

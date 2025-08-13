@@ -1,16 +1,31 @@
 // controllers/applicationController.ts
 import { Request, Response } from "express";
+import mongoose from "mongoose";
 import ApplicationModel from "../models/Application";
 import JobModel from "../models/Job";
 import { sendApplicationSuccessMail } from "../utils/sendApplicationSuccessMail";
 import { sendApplicationStatusMail } from "../utils/ApplicationStatusUpadteMail";
 
-export const applyForJob = async (req: Request, res: Response) => {
+// Type for authenticated user in request
+interface IUser {
+  id: string;
+  email?: string;
+  role: string;
+}
+
+interface IUserRequest extends Request {
+  user?: IUser;
+}
+
+// Apply for a job
+export const applyForJob = async (req: IUserRequest, res: Response) => {
   try {
-    const { id: clientId, email: clientEmail, role } = (req as any).user;
+    const clientId = req.user?.id;
+    const clientEmail = req.user?.email;
+    const role = req.user?.role;
     const { jobId, proposal } = req.body;
 
-    if (role !== "client") {
+    if (!clientId || role !== "client") {
       return res.status(403).json({ error: "Only clients can apply for jobs" });
     }
 
@@ -20,34 +35,38 @@ export const applyForJob = async (req: Request, res: Response) => {
     }
 
     const job = await JobModel.findById(jobId);
-    if (!job) {
-      return res.status(404).json({ error: "Job not found" });
-    }
+    if (!job) return res.status(404).json({ error: "Job not found" });
 
-    const application = await ApplicationModel.create({ jobId, clientId, proposal });
+    const application = await ApplicationModel.create({
+      jobId: job._id,
+      clientId,
+      proposal,
+    });
 
     if (clientEmail) {
       await sendApplicationSuccessMail(
         clientEmail,
         job.title,
         job.location,
-        job.budget.toString(),
+        (job.budget ?? 0).toString(), // ✅ safe default if undefined
         job.duration,
-        application._id.toString(),
-        job._id.toString()
+        (application._id as mongoose.Types.ObjectId).toString(), // ✅ type cast
+        (job._id as mongoose.Types.ObjectId).toString() // ✅ type cast
       );
     }
 
-    return res.status(201).json({ message: "Application submitted", application });
+    res.status(201).json({ message: "Application submitted", application });
   } catch (error) {
     console.error("Application error:", error);
     res.status(500).json({ error: "Failed to apply for job" });
   }
 };
 
-export const getClientApplications = async (req: Request, res: Response) => {
+// Get all applications for a client
+export const getClientApplications = async (req: IUserRequest, res: Response) => {
   try {
-    const clientId = (req as any).user.id;
+    const clientId = req.user?.id;
+    if (!clientId) return res.status(401).json({ error: "Unauthorized" });
 
     const applications = await ApplicationModel.find({ clientId })
       .populate("jobId", "title description skillsRequired location duration budget")
@@ -60,12 +79,14 @@ export const getClientApplications = async (req: Request, res: Response) => {
   }
 };
 
-export const getFreelancerApplications = async (req: Request, res: Response) => {
+// Get all applications for freelancer's posted jobs
+export const getFreelancerApplications = async (req: IUserRequest, res: Response) => {
   try {
-    const freelancerId = (req as any).user.id;
+    const freelancerId = req.user?.id;
+    if (!freelancerId) return res.status(401).json({ error: "Unauthorized" });
 
     const jobs = await JobModel.find({ postedBy: freelancerId }, "_id");
-    const jobIds = jobs.map((j) => j._id);
+    const jobIds = jobs.map(j => j._id);
 
     const applications = await ApplicationModel.find({ jobId: { $in: jobIds } })
       .populate("jobId", "title")
@@ -79,7 +100,8 @@ export const getFreelancerApplications = async (req: Request, res: Response) => 
   }
 };
 
-export const updateApplicationStatus = async (req: Request, res: Response) => {
+// Update application status
+export const updateApplicationStatus = async (req: IUserRequest, res: Response) => {
   try {
     const { status } = req.body;
     const applicationId = req.params.id;
@@ -88,9 +110,7 @@ export const updateApplicationStatus = async (req: Request, res: Response) => {
       .populate("jobId", "title _id")
       .populate("clientId", "email");
 
-    if (!application) {
-      return res.status(404).json({ error: "Application not found" });
-    }
+    if (!application) return res.status(404).json({ error: "Application not found" });
 
     application.status = status;
     await application.save();
@@ -99,7 +119,13 @@ export const updateApplicationStatus = async (req: Request, res: Response) => {
     const jobTitle = (application.jobId as any).title;
     const jobId = (application.jobId as any)._id;
 
-    await sendApplicationStatusMail(clientEmail, jobTitle, jobId.toString(), applicationId, status);
+    await sendApplicationStatusMail(
+      clientEmail,
+      jobTitle,
+      (jobId as mongoose.Types.ObjectId).toString(),
+      (application._id as mongoose.Types.ObjectId).toString(),
+      status
+    );
 
     res.status(200).json({ message: "Application status updated and email sent" });
   } catch (error) {

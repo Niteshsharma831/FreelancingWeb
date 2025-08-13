@@ -1,4 +1,5 @@
 import { Request, Response, NextFunction } from "express";
+import mongoose from "mongoose";
 import Client from "../models/clientModel";
 import Otp from "../models/Otp";
 import JobApplication from "../models/Application";
@@ -90,7 +91,12 @@ export const createUser = async (req: Request, res: Response) => {
     await user.save();
     await Otp.deleteOne({ email });
 
-    const token = generateToken(user._id.toString(), "client", user.email);
+    // ✅ Properly cast _id to string
+    const token = generateToken(
+      (user._id as mongoose.Types.ObjectId).toString(),
+      "client",
+      user.email
+    );
 
     res.cookie("token", token, {
       httpOnly: true,
@@ -121,7 +127,12 @@ export const loginUser = async (req: Request, res: Response) => {
     }
 
     await Otp.deleteOne({ email });
-    const token = generateToken(user._id.toString(), "client", user.email);
+
+    const token = generateToken(
+      (user._id as mongoose.Types.ObjectId).toString(),
+      "client",
+      user.email
+    );
 
     res.cookie("token", token, {
       httpOnly: true,
@@ -182,7 +193,7 @@ export const updateUser = async (req: Request, res: Response) => {
 };
 
 // 👥 Get all clients (for admin use)
-export const getAllUsers = async (req: Request, res: Response) => {
+export const getAllUsers = async (_req: Request, res: Response) => {
   try {
     const users = await Client.find();
     res.status(200).json({ users });
