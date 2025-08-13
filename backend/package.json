@@ -3,11 +3,11 @@
   "version": "1.0.0",
   "description": "",
   "main": "dist/server.js",
-"scripts": {
-  "dev": "ts-node-dev --respawn --transpile-only src/server.ts",
-  "build": "tsc --skipLibCheck --noEmitOnError false",
-  "start": "node dist/server.js"
-},
+  "scripts": {
+    "dev": "ts-node-dev --respawn --transpile-only src/server.ts",
+    "build": "tsc --skipLibCheck --noEmitOnError false",
+    "start": "node dist/server.js"
+  },
   "keywords": [],
   "author": "",
   "license": "ISC",
@@ -31,6 +31,7 @@
     "@types/express": "^5.0.3",
     "@types/jsonwebtoken": "^9.0.10",
     "@types/mongoose": "^5.11.96",
+    "@types/multer": "^2.0.0",
     "@types/node": "^24.1.0",
     "@types/nodemailer": "^6.4.17",
     "ts-node": "^10.9.2",
