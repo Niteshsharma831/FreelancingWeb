@@ -20,10 +20,10 @@ const JobPage = () => {
     const fetchJobsAndApplications = async () => {
       try {
         const [jobsRes, appliedRes] = await Promise.all([
-          axios.get("http://localhost:5000/api/jobs/all"),
+          axios.get("https://freelancingweb-plac.onrender.com/api/jobs/all"),
           token
             ? axios.get(
-                "http://localhost:5000/api/applications/my-applications",
+                "https://freelancingweb-plac.onrender.com/api/applications/my-applications",
                 { headers: { Authorization: `Bearer ${token}` } }
               )
             : Promise.resolve({ data: [] }),
@@ -83,7 +83,7 @@ const JobPage = () => {
     setSubmitting(true);
     try {
       const res = await axios.post(
-        "http://localhost:5000/api/applications/apply",
+        "https://freelancingweb-plac.onrender.com/api/applications/apply",
         { jobId: expandedJob._id, proposal: proposalText },
         { headers: { Authorization: `Bearer ${token}` } }
       );

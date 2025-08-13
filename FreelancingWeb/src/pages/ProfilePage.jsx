@@ -39,7 +39,7 @@ const ProfilePage = () => {
       }
 
       try {
-        const res = await axios.get("http://localhost:5000/api/users/profile", {
+        const res = await axios.get("https://freelancingweb-plac.onrender.com/api/users/profile", {
           headers: { Authorization: `Bearer ${token}` },
         });
         setUser(res.data);
@@ -95,7 +95,7 @@ const ProfilePage = () => {
       };
 
       const res = await axios.put(
-        "http://localhost:5000/api/users/update",
+        "https://freelancingweb-plac.onrender.com/api/users/update",
         updatedProfile,
         {
           headers: { Authorization: `Bearer ${token}` },

@@ -19,7 +19,7 @@ const DashboardOverview = () => {
 
   const fetchFreelancerDetails = async () => {
     try {
-      const res = await axios.get("http://localhost:5000/api/freelancers/me", {
+      const res = await axios.get("https://freelancingweb-plac.onrender.com/api/freelancers/me", {
         withCredentials: true, // ensure cookie (token) is sent
       });
       setFreelancer(res.data);
@@ -30,9 +30,9 @@ const DashboardOverview = () => {
 
   const fetchDashboardStats = async () => {
     try {
-      const jobsRes = await axios.get(`http://localhost:5000/api/jobs/my-jobs`);
+      const jobsRes = await axios.get(`https://freelancingweb-plac.onrender.com/api/jobs/my-jobs`);
       const applicationsRes = await axios.get(
-        `http://localhost:5000/api/applications/by-freelancer/${freelancerId}`
+        `https://freelancingweb-plac.onrender.com/api/applications/by-freelancer/${freelancerId}`
       );
 
       setTotalJobs(jobsRes.data.length || 0);

@@ -20,10 +20,10 @@ const InternshipPage = () => {
     const fetchInternships = async () => {
       try {
         const [jobsRes, appliedRes] = await Promise.all([
-          axios.get("http://localhost:5000/api/jobs/all"),
+          axios.get("https://freelancingweb-plac.onrender.com/api/jobs/all"),
           token
             ? axios.get(
-                "http://localhost:5000/api/applications/my-applications",
+                "https://freelancingweb-plac.onrender.com/api/applications/my-applications",
                 { headers: { Authorization: `Bearer ${token}` } }
               )
             : Promise.resolve({ data: [] }),
@@ -86,7 +86,7 @@ const InternshipPage = () => {
     setSubmitting(true);
     try {
       const res = await axios.post(
-        "http://localhost:5000/api/applications/apply",
+        "https://freelancingweb-plac.onrender.com/api/applications/apply",
         { jobId: expandedJob._id, proposal: proposalText },
         { headers: { Authorization: `Bearer ${token}` } }
       );
@@ -122,7 +122,9 @@ const InternshipPage = () => {
 
       <div className="flex flex-col lg:flex-row gap-6">
         <div
-          className={`flex-1 grid gap-6 grid-cols-1 sm:grid-cols-2 lg:grid-cols-4`}
+          className={`flex-1 grid gap-6 grid-cols-1 sm:grid-cols-2 lg:${
+            expandedJob ? "grid-cols-3" : "grid-cols-4"
+          }`}
         >
           {jobs.map((job) => {
             const alreadyApplied = appliedJobIds.includes(job._id);

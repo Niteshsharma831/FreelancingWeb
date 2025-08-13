@@ -18,7 +18,7 @@ const ApplicationsPage = () => {
   const fetchApplications = async () => {
     try {
       const res = await axios.get(
-        "http://localhost:5000/api/applications/freelancer",
+        "https://freelancingweb-plac.onrender.com/api/applications/freelancer",
         { withCredentials: true }
       );
       setApplications(res.data);
@@ -31,7 +31,7 @@ const ApplicationsPage = () => {
     setLoadingStatus(applicationId + newStatus);
     try {
       await axios.put(
-        `http://localhost:5000/api/applications/update-status/${applicationId}`,
+        `https://freelancingweb-plac.onrender.com/api/applications/update-status/${applicationId}`,
         { status: newStatus },
         { withCredentials: true }
       );
@@ -53,7 +53,7 @@ const ApplicationsPage = () => {
     setLoadingUser(app._id);
     try {
       const res = await axios.get(
-        `http://localhost:5000/api/users/get-user-by-id/${app.clientId._id}`,
+        `https://freelancingweb-plac.onrender.com/api/users/get-user-by-id/${app.clientId._id}`,
         { withCredentials: true }
       );
       setSelectedUser(res.data);

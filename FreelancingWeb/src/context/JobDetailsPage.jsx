@@ -24,8 +24,8 @@ const JobDetailsPage = () => {
     const fetchJobDetails = async () => {
       try {
         const [jobRes, jobsRes] = await Promise.all([
-          axios.get(`http://localhost:5000/api/jobs/jobbyid/${id}`),
-          axios.get("http://localhost:5000/api/jobs/all"),
+          axios.get(`https://freelancingweb-plac.onrender.com/api/jobs/jobbyid/${id}`),
+          axios.get("https://freelancingweb-plac.onrender.com/api/jobs/all"),
         ]);
         setJob(jobRes.data);
         setJobs(jobsRes.data);
@@ -41,7 +41,7 @@ const JobDetailsPage = () => {
       if (!token) return;
       try {
         const res = await axios.get(
-          "http://localhost:5000/api/applications/my-applications",
+          "https://freelancingweb-plac.onrender.com/api/applications/my-applications",
           { headers: { Authorization: `Bearer ${token}` } }
         );
         const appliedIds = res.data.map((app) =>
@@ -73,7 +73,7 @@ const JobDetailsPage = () => {
     setSubmitting(true);
     try {
       const res = await axios.post(
-        "http://localhost:5000/api/applications/apply",
+        "https://freelancingweb-plac.onrender.com/api/applications/apply",
         { jobId: id, proposal: proposalText },
         { headers: { Authorization: `Bearer ${token}` } }
       );

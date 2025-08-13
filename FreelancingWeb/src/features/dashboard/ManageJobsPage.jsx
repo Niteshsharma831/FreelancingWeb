@@ -14,7 +14,7 @@ const ManageJobsPage = () => {
   const fetchFreelancer = async () => {
     try {
       const token = localStorage.getItem("token");
-      const res = await axios.get("http://localhost:5000/api/freelancers/me", {
+      const res = await axios.get("https://freelancingweb-plac.onrender.com/api/freelancers/me", {
         headers: {
           Authorization: `Bearer ${token}`,
         },
@@ -29,7 +29,7 @@ const ManageJobsPage = () => {
     setLoading(true);
     try {
       const token = localStorage.getItem("token");
-      const res = await axios.get("http://localhost:5000/api/jobs/my-jobs", {
+      const res = await axios.get("https://freelancingweb-plac.onrender.com/api/jobs/my-jobs", {
         headers: {
           Authorization: `Bearer ${token}`,
         },
@@ -51,7 +51,7 @@ const ManageJobsPage = () => {
 
     try {
       const token = localStorage.getItem("token");
-      await axios.delete(`http://localhost:5000/api/jobs/delete/${jobId}`, {
+      await axios.delete(`https://freelancingweb-plac.onrender.com/api/jobs/delete/${jobId}`, {
         headers: {
           Authorization: `Bearer ${token}`,
         },
