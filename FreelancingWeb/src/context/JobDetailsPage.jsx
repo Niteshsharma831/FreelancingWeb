@@ -101,7 +101,7 @@ const JobDetailsPage = () => {
   }
 
   return (
-    <div className="min-h-screen bg-gradient-to-br from-indigo-50 via-white to-purple-50 p-4 sm:p-6 lg:p-10 mt-20">
+    <div className="min-h-screen bg-gradient-to-br from-indigo-50 via-white to-purple-50 p-0 sm:p-4 lg:p-10 mt-20">
       <ToastContainer position="top-center" autoClose={3000} />
 
       <div className="flex flex-col lg:flex-row gap-6">
@@ -111,13 +111,14 @@ const JobDetailsPage = () => {
             initial={{ opacity: 0, y: 20 }}
             animate={{ opacity: 1, y: 0 }}
             transition={{ duration: 0.6 }}
-            className="bg-white shadow-xl rounded-3xl p-6 sm:p-8 mb-6"
+            className="bg-white lg:shadow-xl lg:rounded-3xl lg:p-6 p-4 mb-6"
           >
             <h1 className="text-3xl font-extrabold text-gray-800 mb-4">
               {job.title}
             </h1>
             <p className="text-gray-700 mb-4 text-justify">{job.description}</p>
 
+            {/* Info Grid */}
             <div className="grid grid-cols-1 sm:grid-cols-3 gap-4 text-sm text-gray-600 mb-4">
               <div className="flex items-center gap-2">
                 <FaMapMarkerAlt className="text-indigo-500" /> {job.location}
@@ -132,6 +133,7 @@ const JobDetailsPage = () => {
               </div>
             </div>
 
+            {/* Job Type, Mode, Company */}
             <div className="grid grid-cols-1 sm:grid-cols-2 gap-4 text-sm text-gray-600 mb-4">
               <div>
                 <strong>Job Type:</strong> {job.jobType}
@@ -144,6 +146,7 @@ const JobDetailsPage = () => {
               </div>
             </div>
 
+            {/* Optional Sections */}
             {job.details && (
               <div className="mb-4">
                 <h3 className="font-semibold text-gray-700 mb-2">
@@ -154,7 +157,6 @@ const JobDetailsPage = () => {
                 </p>
               </div>
             )}
-
             {job.companyLogo && (
               <img
                 src={job.companyLogo}
@@ -176,56 +178,7 @@ const JobDetailsPage = () => {
               </p>
             )}
 
-            {job.perks?.length > 0 && (
-              <div className="mb-4">
-                <h3 className="font-semibold text-gray-700 mb-2">Perks:</h3>
-                <ul className="list-disc list-inside text-sm text-gray-700">
-                  {job.perks.map((perk, i) => (
-                    <li key={i}>{perk}</li>
-                  ))}
-                </ul>
-              </div>
-            )}
-
-            {job.responsibilities?.length > 0 && (
-              <div className="mb-4">
-                <h3 className="font-semibold text-gray-700 mb-2">
-                  Responsibilities:
-                </h3>
-                <ul className="list-disc list-inside text-sm text-gray-700">
-                  {job.responsibilities.map((item, i) => (
-                    <li key={i}>{item}</li>
-                  ))}
-                </ul>
-              </div>
-            )}
-
-            {job.requirements?.length > 0 && (
-              <div className="mb-4">
-                <h3 className="font-semibold text-gray-700 mb-2">
-                  Requirements:
-                </h3>
-                <ul className="list-disc list-inside text-sm text-gray-700">
-                  {job.requirements.map((item, i) => (
-                    <li key={i}>{item}</li>
-                  ))}
-                </ul>
-              </div>
-            )}
-
-            {job.preferredQualifications?.length > 0 && (
-              <div className="mb-4">
-                <h3 className="font-semibold text-gray-700 mb-2">
-                  Preferred Qualifications:
-                </h3>
-                <ul className="list-disc list-inside text-sm text-gray-700">
-                  {job.preferredQualifications.map((item, i) => (
-                    <li key={i}>{item}</li>
-                  ))}
-                </ul>
-              </div>
-            )}
-
+            {/* Skills, Responsibilities, Perks */}
             {job.skillsRequired?.length > 0 && (
               <div className="mb-4">
                 <h3 className="font-semibold text-gray-700 mb-2">
@@ -243,6 +196,28 @@ const JobDetailsPage = () => {
                 </div>
               </div>
             )}
+            {job.responsibilities?.length > 0 && (
+              <div className="mb-4">
+                <h3 className="font-semibold text-gray-700 mb-2">
+                  Responsibilities:
+                </h3>
+                <ul className="list-disc list-inside text-sm text-gray-700">
+                  {job.responsibilities.map((item, i) => (
+                    <li key={i}>{item}</li>
+                  ))}
+                </ul>
+              </div>
+            )}
+            {job.perks?.length > 0 && (
+              <div className="mb-4">
+                <h3 className="font-semibold text-gray-700 mb-2">Perks:</h3>
+                <ul className="list-disc list-inside text-sm text-gray-700">
+                  {job.perks.map((perk, i) => (
+                    <li key={i}>{perk}</li>
+                  ))}
+                </ul>
+              </div>
+            )}
 
             {job.postedBy && (
               <div className="mt-6 border-t pt-4 flex items-center gap-3">
@@ -257,13 +232,10 @@ const JobDetailsPage = () => {
               </div>
             )}
 
-            {/* Apply Section */}
+            {/* Apply Section - Mobile Full Width */}
             <div className="mt-6 lg:hidden">
               {!applied ? (
-                <form
-                  onSubmit={handleProposalSubmit}
-                  className="bg-white p-4 rounded-2xl shadow-lg"
-                >
+                <form onSubmit={handleProposalSubmit} className="w-full">
                   <h3 className="text-lg font-semibold mb-2 text-gray-700">
                     ✍️ Submit Your Proposal
                   </h3>
@@ -272,12 +244,12 @@ const JobDetailsPage = () => {
                     placeholder="Write your cover letter..."
                     value={proposalText}
                     onChange={(e) => setProposalText(e.target.value)}
-                    className="w-full border border-gray-300 px-4 py-2 rounded-lg text-sm mb-3 focus:outline-none focus:ring-2 focus:ring-indigo-400"
+                    className="w-full border border-gray-300 px-3 py-2 rounded-lg text-sm mb-3 focus:outline-none focus:ring-2 focus:ring-indigo-400"
                   />
                   <button
                     type="submit"
                     disabled={submitting}
-                    className={`w-full px-6 py-2 rounded-lg text-white font-medium shadow-md transition ${
+                    className={`w-full px-4 py-2 rounded-lg text-white font-medium transition ${
                       submitting
                         ? "bg-indigo-400 cursor-not-allowed"
                         : "bg-indigo-600 hover:bg-indigo-700"
@@ -295,8 +267,9 @@ const JobDetailsPage = () => {
           </motion.div>
         </div>
 
-        {/* Sidebar for Desktop */}
+        {/* Sidebar: Desktop only */}
         <div className="hidden lg:flex lg:flex-col w-full lg:w-1/3 gap-6">
+          {/* Apply Section */}
           <motion.div
             initial={{ opacity: 0, y: 20 }}
             animate={{ opacity: 1, y: 0 }}
