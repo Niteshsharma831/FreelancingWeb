@@ -291,13 +291,13 @@ const Navbar = ({ user: propUser, onLogout }) => {
               >
                 Register as Employer
               </Link> */}
-              {/* <Link
+              <Link
                 to="/login"
                 onClick={closeMenus}
                 className="block py-1 text-gray-700 hover:bg-blue-50"
               >
                 Login as User
-              </Link> */}
+              </Link>
             </>
           )}
         </div>

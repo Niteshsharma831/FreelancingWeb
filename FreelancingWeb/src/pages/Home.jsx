@@ -41,7 +41,32 @@ const HomePage = () => {
         salary: "$70k - $90k",
         tags: ["Node.js", "MongoDB", "AWS"],
       },
+      {
+        id: 4,
+        title: "Full Stack Developer",
+        company: "Innovatech",
+        location: "London, UK",
+        salary: "$65k - $85k",
+        tags: ["React", "Node.js", "Express", "MongoDB"],
+      },
+      {
+        id: 5,
+        title: "Data Analyst",
+        company: "DataHive",
+        location: "San Francisco, USA",
+        salary: "$55k - $75k",
+        tags: ["Python", "SQL", "Excel", "Tableau"],
+      },
+      {
+        id: 6,
+        title: "Digital Marketing Specialist",
+        company: "MarketGurus",
+        location: "Remote",
+        salary: "$45k - $60k",
+        tags: ["SEO", "Google Ads", "Social Media"],
+      },
     ];
+
     setJobs(dummyJobs);
   }, []);
 
@@ -83,44 +108,44 @@ const HomePage = () => {
     return () => clearInterval(timer);
   }, []);
 
-  const trainings = [
-    {
-      title: "MERN Stack Development",
-      description:
-        "Learn MongoDB, Express, React, and Node.js from scratch and build real-world web apps.",
-      image: "https://images.unsplash.com/photo-1519389950473-47ba0277781c",
-    },
-    {
-      title: "Flutter Mobile App Development",
-      description:
-        "Create cross-platform mobile apps with a single codebase using Flutter & Dart.",
-      image: "https://images.unsplash.com/photo-1556157382-97eda2d62296",
-    },
-    {
-      title: "Digital Marketing Mastery",
-      description:
-        "Master SEO, social media, content marketing, and ads to grow businesses online.",
-      image: "https://images.unsplash.com/photo-1542744173-8e7e53415bb0",
-    },
-    {
-      title: "Cyber Security Fundamentals",
-      description:
-        "Protect networks, prevent attacks, and secure applications with hands-on training.",
-      image: "https://images.unsplash.com/photo-1593720219276-c64b1a21e7f4",
-    },
-    {
-      title: "AI & Machine Learning",
-      description:
-        "Dive into AI, ML algorithms, and data analysis with Python to create intelligent apps.",
-      image: "https://images.unsplash.com/photo-1504384308090-c894fdcc538d",
-    },
-    {
-      title: "UI/UX Design Bootcamp",
-      description:
-        "Design beautiful and user-friendly websites & apps with Figma, Adobe XD, and more.",
-      image: "https://images.unsplash.com/photo-1581090700227-4c4e1b4a1b4f",
-    },
-  ];
+  // const trainings = [
+  //   {
+  //     title: "MERN Stack Development",
+  //     description:
+  //       "Learn MongoDB, Express, React, and Node.js from scratch and build real-world web apps.",
+  //     image: "https://images.unsplash.com/photo-1519389950473-47ba0277781c",
+  //   },
+  //   {
+  //     title: "Flutter Mobile App Development",
+  //     description:
+  //       "Create cross-platform mobile apps with a single codebase using Flutter & Dart.",
+  //     image: "https://images.unsplash.com/photo-1556157382-97eda2d62296",
+  //   },
+  //   {
+  //     title: "Digital Marketing Mastery",
+  //     description:
+  //       "Master SEO, social media, content marketing, and ads to grow businesses online.",
+  //     image: "https://images.unsplash.com/photo-1542744173-8e7e53415bb0",
+  //   },
+  //   {
+  //     title: "Cyber Security Fundamentals",
+  //     description:
+  //       "Protect networks, prevent attacks, and secure applications with hands-on training.",
+  //     image: "https://images.unsplash.com/photo-1593720219276-c64b1a21e7f4",
+  //   },
+  //   {
+  //     title: "AI & Machine Learning",
+  //     description:
+  //       "Dive into AI, ML algorithms, and data analysis with Python to create intelligent apps.",
+  //     image: "https://images.unsplash.com/photo-1504384308090-c894fdcc538d",
+  //   },
+  //   {
+  //     title: "UI/UX Design Bootcamp",
+  //     description:
+  //       "Design beautiful and user-friendly websites & apps with Figma, Adobe XD, and more.",
+  //     image: "https://images.unsplash.com/photo-1581090700227-4c4e1b4a1b4f",
+  //   },
+  // ];
 
   return (
     <div className="min-h-screen bg-white text-gray-800 pt-16">
@@ -204,10 +229,41 @@ const HomePage = () => {
       {/* Jobs Section */}
       <section className="bg-white py-16 px-4 sm:px-6 lg:px-8">
         <div className="max-w-7xl mx-auto">
-          <h2 className="text-3xl sm:text-4xl font-bold mb-12 text-center">
+          <h2 className="text-3xl sm:text-4xl font-bold mb-8 text-center">
             Latest Job Openings
           </h2>
-          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-6">
+
+          {/* Small screen: Show summary + button */}
+          <div className="sm:hidden flex flex-col items-center gap-4">
+            <p className="text-gray-600 text-center">
+              Explore over <span className="font-semibold">500+ jobs</span> and
+              find your next opportunity.
+            </p>
+            <Link
+              to="/alljobs"
+              className="px-6 py-3 bg-blue-600 text-white rounded-lg font-medium hover:bg-blue-700 transition w-full text-center max-w-xs"
+            >
+              Explore All Jobs
+            </Link>
+
+            {/* Optional categories buttons */}
+            <div className="flex flex-wrap justify-center gap-3 mt-4">
+              {["Web Dev", "Mobile Apps", "Design", "Marketing"].map(
+                (cat, idx) => (
+                  <Link
+                    key={idx}
+                    to={`/alljobs?category=${cat}`}
+                    className="px-4 py-2 bg-gray-100 text-gray-800 rounded-full text-sm hover:bg-gray-200 transition"
+                  >
+                    {cat}
+                  </Link>
+                )
+              )}
+            </div>
+          </div>
+
+          {/* Medium & large screens: Show cards */}
+          <div className="hidden sm:grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-6 mt-6">
             {jobs.map((job) => (
               <motion.div
                 key={job.id}
@@ -234,16 +290,18 @@ const HomePage = () => {
                     </span>
                   ))}
                 </div>
-                <button className="mt-6 w-full bg-blue-600 hover:bg-blue-700 text-white py-2 rounded-lg font-medium transition">
-                  Apply Now
-                </button>
               </motion.div>
             ))}
           </div>
-          <div className="flex justify-end mt-6 mb-6">
-            <button className="px-6 py-2 bg-gray-600 text-white rounded-lg hover:bg-gray-700 transition">
-              More Jobs
-            </button>
+
+          {/* Optional More Jobs button for larger screens */}
+          <div className="hidden sm:flex justify-end mt-6 mb-6">
+            <Link
+              to="/alljobs"
+              className="px-6 py-2 bg-gray-600 text-white rounded-lg hover:bg-gray-700 transition"
+            >
+              Explore More Jobs
+            </Link>
           </div>
         </div>
       </section>
