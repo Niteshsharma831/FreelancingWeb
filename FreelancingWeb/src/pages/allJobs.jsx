@@ -1,4 +1,4 @@
-import React, { useEffect, useState } from "react";
+import React, { useEffect, useState, useMemo } from "react";
 import axios from "axios";
 import {
   FaMapMarkerAlt,
@@ -43,6 +43,57 @@ const indianStates = [
   "Remote",
 ];
 
+const MultiSelectFilter = React.memo(
+  ({
+    label,
+    field,
+    options,
+    filters,
+    handleFilterChange,
+    filterOpen,
+    setFilterOpen,
+  }) => (
+    <div className="border-b border-gray-200 pb-2">
+      <button
+        onClick={() =>
+          setFilterOpen((prev) => ({ ...prev, [field]: !prev[field] }))
+        }
+        className="flex justify-between items-center w-full py-2 text-gray-800 font-medium"
+      >
+        {label}
+        <FaChevronDown
+          className={`transition-transform ${
+            filterOpen[field] ? "rotate-180" : ""
+          }`}
+        />
+      </button>
+      {filterOpen[field] && (
+        <div className="mt-2 space-y-1 max-h-48 overflow-y-auto pr-1">
+          {options.map((opt, idx) => (
+            <div key={idx} className="flex items-center">
+              <input
+                type="checkbox"
+                name={field}
+                value={opt}
+                checked={filters[field].includes(opt)}
+                onChange={() => handleFilterChange(field, opt)}
+                className="mr-2"
+              />
+              <label>{opt}</label>
+            </div>
+          ))}
+          <button
+            className="text-sm text-blue-600 mt-1"
+            onClick={() => setFilterOpen((prev) => ({ ...prev, [field]: [] }))}
+          >
+            Clear
+          </button>
+        </div>
+      )}
+    </div>
+  )
+);
+
 const JobPage = () => {
   const [jobs, setJobs] = useState([]);
   const [loading, setLoading] = useState(true);
@@ -69,11 +120,18 @@ const JobPage = () => {
   const token = localStorage.getItem("token");
   const navigate = useNavigate();
 
+  const [page, setPage] = useState(1);
+  const pageSize = 20;
+  const [hasMore, setHasMore] = useState(true);
+
   useEffect(() => {
     const fetchJobsAndApplications = async () => {
+      setLoading(true);
       try {
         const [jobsRes, appliedRes] = await Promise.all([
-          axios.get("https://freelancingweb-plac.onrender.com/api/jobs/all"),
+          axios.get(
+            `https://freelancingweb-plac.onrender.com/api/jobs/all?page=${page}&limit=${pageSize}`
+          ),
           token
             ? axios.get(
                 "https://freelancingweb-plac.onrender.com/api/applications/my-applications",
@@ -81,7 +139,10 @@ const JobPage = () => {
               )
             : Promise.resolve({ data: [] }),
         ]);
-        setJobs(jobsRes.data);
+
+        setJobs((prev) => [...prev, ...jobsRes.data]);
+        if (jobsRes.data.length < pageSize) setHasMore(false);
+
         const appliedIds = appliedRes.data.map((app) =>
           typeof app.jobId === "object" ? app.jobId._id : app.jobId
         );
@@ -94,35 +155,35 @@ const JobPage = () => {
       }
     };
     fetchJobsAndApplications();
-  }, [token]);
+  }, [token, page]);
 
   const handleFilterChange = (field, value) => {
     setFilters((prev) => {
       const current = prev[field];
       if (current.includes(value)) {
-        // remove
         return { ...prev, [field]: current.filter((v) => v !== value) };
       } else {
-        // add
         return { ...prev, [field]: [...current, value] };
       }
     });
   };
 
-  const filteredJobs = jobs.filter((job) => {
-    const matches = (field) =>
-      filters[field].length === 0 ||
-      filters[field].includes(job[field]) ||
-      (field === "skills" &&
-        filters.skills.every((skill) => job.skillsRequired.includes(skill)));
-    return (
-      matches("jobType") &&
-      matches("location") &&
-      matches("skills") &&
-      matches("duration") &&
-      matches("experience")
-    );
-  });
+  const filteredJobs = useMemo(() => {
+    return jobs.filter((job) => {
+      const matches = (field) =>
+        filters[field].length === 0 ||
+        filters[field].includes(job[field]) ||
+        (field === "skills" &&
+          filters.skills.every((skill) => job.skillsRequired.includes(skill)));
+      return (
+        matches("jobType") &&
+        matches("location") &&
+        matches("skills") &&
+        matches("duration") &&
+        matches("experience")
+      );
+    });
+  }, [jobs, filters]);
 
   const handleApplyClick = (job) => {
     if (!token) {
@@ -174,61 +235,24 @@ const JobPage = () => {
     }
   };
 
-  const MultiSelectFilter = ({ label, field, options }) => (
-    <div className="border-b border-gray-200 pb-2">
-      <button
-        onClick={() =>
-          setFilterOpen((prev) => ({ ...prev, [field]: !prev[field] }))
-        }
-        className="flex justify-between items-center w-full py-2 text-gray-800 font-medium"
-      >
-        {label}
-        <FaChevronDown
-          className={`transition-transform ${
-            filterOpen[field] ? "rotate-180" : ""
-          }`}
-        />
-      </button>
-      {filterOpen[field] && (
-        <div className="mt-2 space-y-1 max-h-48 overflow-y-auto pr-1">
-          {options.map((opt, idx) => (
-            <div key={idx} className="flex items-center">
-              <input
-                type="checkbox"
-                name={field}
-                value={opt}
-                checked={filters[field].includes(opt)}
-                onChange={() => handleFilterChange(field, opt)}
-                className="mr-2"
-              />
-              <label>{opt}</label>
-            </div>
-          ))}
-          <button
-            className="text-sm text-blue-600 mt-1"
-            onClick={() => setFilters((prev) => ({ ...prev, [field]: [] }))}
-          >
-            Clear
-          </button>
-        </div>
-      )}
-    </div>
-  );
-
-  if (loading) {
-    return (
-      <div className="flex justify-center items-center h-screen bg-gradient-to-br from-indigo-100 to-purple-200">
-        <p className="text-lg text-gray-700 font-medium animate-pulse">
-          Loading jobs...
-        </p>
-      </div>
-    );
-  }
-
   const jobTypes = [...new Set(jobs.map((j) => j.jobType))];
   const skills = [...new Set(jobs.flatMap((j) => j.skillsRequired))];
   const durations = [...new Set(jobs.map((j) => j.duration))];
   const experiences = [...new Set(jobs.map((j) => j.experience))];
+
+  // Infinite scroll
+  useEffect(() => {
+    const handleScroll = () => {
+      if (
+        window.innerHeight + window.scrollY + 1 >=
+        document.documentElement.scrollHeight
+      ) {
+        if (!loading && hasMore) setPage((prev) => prev + 1);
+      }
+    };
+    window.addEventListener("scroll", handleScroll);
+    return () => window.removeEventListener("scroll", handleScroll);
+  }, [loading, hasMore]);
 
   return (
     <div className="min-h-screen bg-gradient-to-br from-indigo-100 via-white to-purple-100 mt-15">
@@ -252,94 +276,131 @@ const JobPage = () => {
             label="Job Type"
             field="jobType"
             options={jobTypes}
+            filters={filters}
+            handleFilterChange={handleFilterChange}
+            filterOpen={filterOpen}
+            setFilterOpen={setFilterOpen}
           />
           <MultiSelectFilter
             label="Location"
             field="location"
             options={indianStates}
+            filters={filters}
+            handleFilterChange={handleFilterChange}
+            filterOpen={filterOpen}
+            setFilterOpen={setFilterOpen}
           />
-          <MultiSelectFilter label="Skills" field="skills" options={skills} />
+          <MultiSelectFilter
+            label="Skills"
+            field="skills"
+            options={skills}
+            filters={filters}
+            handleFilterChange={handleFilterChange}
+            filterOpen={filterOpen}
+            setFilterOpen={setFilterOpen}
+          />
           <MultiSelectFilter
             label="Duration"
             field="duration"
             options={durations}
+            filters={filters}
+            handleFilterChange={handleFilterChange}
+            filterOpen={filterOpen}
+            setFilterOpen={setFilterOpen}
           />
           <MultiSelectFilter
             label="Experience"
             field="experience"
             options={experiences}
+            filters={filters}
+            handleFilterChange={handleFilterChange}
+            filterOpen={filterOpen}
+            setFilterOpen={setFilterOpen}
           />
         </div>
 
         {/* Jobs scrollable */}
         <div className="flex-1 lg:h-screen lg:overflow-y-auto p-4 grid gap-6 grid-cols-1 sm:grid-cols-2 lg:grid-cols-3">
-          {filteredJobs.map((job) => {
-            const alreadyApplied = appliedJobIds.includes(job._id);
-            const isExpanded = expandedJob && expandedJob._id === job._id;
-            return (
+          {loading && jobs.length === 0 ? (
+            [...Array(6)].map((_, i) => (
               <div
-                key={job._id}
-                className="bg-white rounded-xl shadow-md p-5 hover:shadow-xl transition"
-              >
-                <h2 className="text-xl font-semibold mb-2">{job.title}</h2>
-                <p className="text-gray-600 text-sm mb-4">
-                  {job.description.slice(0, 120)}...
-                </p>
-                <div className="text-sm text-gray-500 flex items-center mb-1">
-                  <FaMapMarkerAlt className="text-indigo-500 mr-1" />{" "}
-                  {job.location}
-                </div>
-                <div className="text-sm text-gray-500 flex items-center mb-1">
-                  <FaClock className="text-purple-500 mr-1" /> {job.duration}
-                </div>
-                <div className="text-sm text-gray-500 flex items-center mb-4">
-                  <FaMoneyBillAlt className="text-green-500 mr-1" />{" "}
-                  {job.jobType === "Internship"
-                    ? `Stipend: ₹${job.stipend}`
-                    : `CTC: ₹${job.ctc}`}
-                </div>
-                <div className="flex justify-between">
-                  <button
-                    className="bg-gray-200 px-3 py-1 rounded"
-                    onClick={() => handleViewDetails(job._id)}
-                  >
-                    View Details
-                  </button>
-                  <button
-                    onClick={() => handleApplyClick(job)}
-                    disabled={alreadyApplied}
-                    className={`px-3 py-1 rounded text-white ${
-                      alreadyApplied
-                        ? "bg-green-500"
-                        : "bg-indigo-600 hover:bg-indigo-700"
-                    }`}
-                  >
-                    {alreadyApplied ? "Applied" : "Apply"}
-                  </button>
-                </div>
-
-                {/* Desktop proposal form */}
-                {isExpanded && !alreadyApplied && (
-                  <form onSubmit={submitProposal} className="mt-4">
-                    <textarea
-                      value={proposalText}
-                      onChange={(e) => setProposalText(e.target.value)}
-                      placeholder="Write your cover letter here..."
-                      className="w-full border p-2 rounded mb-2 resize-none"
-                      rows="3"
-                    />
+                key={i}
+                className="animate-pulse h-40 bg-gray-200 rounded-xl"
+              />
+            ))
+          ) : filteredJobs.length > 0 ? (
+            filteredJobs.map((job) => {
+              const alreadyApplied = appliedJobIds.includes(job._id);
+              const isExpanded = expandedJob && expandedJob._id === job._id;
+              return (
+                <div
+                  key={job._id}
+                  className="bg-white rounded-xl shadow-md p-5 hover:shadow-xl transition"
+                >
+                  <h2 className="text-xl font-semibold mb-2">{job.title}</h2>
+                  <p className="text-gray-600 text-sm mb-4">
+                    {job.description.slice(0, 120)}...
+                  </p>
+                  <div className="text-sm text-gray-500 flex items-center mb-1">
+                    <FaMapMarkerAlt className="text-indigo-500 mr-1" />{" "}
+                    {job.location}
+                  </div>
+                  <div className="text-sm text-gray-500 flex items-center mb-1">
+                    <FaClock className="text-purple-500 mr-1" /> {job.duration}
+                  </div>
+                  <div className="text-sm text-gray-500 flex items-center mb-4">
+                    <FaMoneyBillAlt className="text-green-500 mr-1" />{" "}
+                    {job.jobType === "Internship"
+                      ? `Stipend: ₹${job.stipend}`
+                      : `CTC: ₹${job.ctc}`}
+                  </div>
+                  <div className="flex justify-between">
                     <button
-                      type="submit"
-                      disabled={submitting}
-                      className="bg-green-600 hover:bg-green-700 text-white px-4 py-2 rounded"
+                      className="bg-gray-200 px-3 py-1 rounded"
+                      onClick={() => handleViewDetails(job._id)}
                     >
-                      {submitting ? "Submitting..." : "Submit Application"}
+                      View Details
                     </button>
-                  </form>
-                )}
-              </div>
-            );
-          })}
+                    <button
+                      onClick={() => handleApplyClick(job)}
+                      disabled={alreadyApplied}
+                      className={`px-3 py-1 rounded text-white ${
+                        alreadyApplied
+                          ? "bg-green-500"
+                          : "bg-indigo-600 hover:bg-indigo-700"
+                      }`}
+                    >
+                      {alreadyApplied ? "Applied" : "Apply"}
+                    </button>
+                  </div>
+
+                  {/* Desktop proposal form */}
+                  {isExpanded && !alreadyApplied && (
+                    <form onSubmit={submitProposal} className="mt-4">
+                      <textarea
+                        value={proposalText}
+                        onChange={(e) => setProposalText(e.target.value)}
+                        placeholder="Write your cover letter here..."
+                        className="w-full border p-2 rounded mb-2 resize-none"
+                        rows="3"
+                      />
+                      <button
+                        type="submit"
+                        disabled={submitting}
+                        className="bg-green-600 hover:bg-green-700 text-white px-4 py-2 rounded"
+                      >
+                        {submitting ? "Submitting..." : "Submit Application"}
+                      </button>
+                    </form>
+                  )}
+                </div>
+              );
+            })
+          ) : (
+            <p className="text-gray-700 col-span-full text-center">
+              No jobs found with selected filters.
+            </p>
+          )}
         </div>
       </div>
 
@@ -360,22 +421,46 @@ const JobPage = () => {
               label="Job Type"
               field="jobType"
               options={jobTypes}
+              filters={filters}
+              handleFilterChange={handleFilterChange}
+              filterOpen={filterOpen}
+              setFilterOpen={setFilterOpen}
             />
             <MultiSelectFilter
               label="Location"
               field="location"
               options={indianStates}
+              filters={filters}
+              handleFilterChange={handleFilterChange}
+              filterOpen={filterOpen}
+              setFilterOpen={setFilterOpen}
             />
-            <MultiSelectFilter label="Skills" field="skills" options={skills} />
+            <MultiSelectFilter
+              label="Skills"
+              field="skills"
+              options={skills}
+              filters={filters}
+              handleFilterChange={handleFilterChange}
+              filterOpen={filterOpen}
+              setFilterOpen={setFilterOpen}
+            />
             <MultiSelectFilter
               label="Duration"
               field="duration"
               options={durations}
+              filters={filters}
+              handleFilterChange={handleFilterChange}
+              filterOpen={filterOpen}
+              setFilterOpen={setFilterOpen}
             />
             <MultiSelectFilter
               label="Experience"
               field="experience"
               options={experiences}
+              filters={filters}
+              handleFilterChange={handleFilterChange}
+              filterOpen={filterOpen}
+              setFilterOpen={setFilterOpen}
             />
           </div>
           <div
