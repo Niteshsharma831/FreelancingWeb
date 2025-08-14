@@ -1,87 +1,98 @@
-import { ShieldCheck, Mail, Cookie, User, Lock } from "lucide-react";
+import {
+  FileText,
+  Users,
+  ShieldCheck,
+  CheckCircle,
+  Lock,
+  Mail,
+} from "lucide-react";
 
-const PrivacyPolicy = () => {
+const TermsAndConditions = () => {
   return (
     <div className="bg-gray-50 min-h-screen py-12 px-4 sm:px-6 lg:px-8">
       <div className="max-w-4xl mx-auto space-y-10">
         {/* Header */}
         <div className="text-center">
-          <ShieldCheck className="mx-auto text-blue-600 w-12 h-12 mb-4" />
-          <h1 className="text-4xl font-bold text-gray-900">Privacy Policy</h1>
+          <FileText className="mx-auto text-blue-600 w-12 h-12 mb-4" />
+          <h1 className="text-4xl font-bold text-gray-900">
+            Terms & Conditions
+          </h1>
           <p className="mt-2 text-gray-600 text-lg">
-            At <strong>WorkBridge</strong>, we prioritize your privacy. Learn
-            how we collect, use, and protect your information.
+            Welcome to <strong>WorkBridge</strong>. By using our platform, you
+            agree to these terms. Please read them carefully.
           </p>
         </div>
 
         {/* Sections */}
         <div className="space-y-8">
-          {/* 1. Information We Collect */}
+          {/* 1. User Accounts */}
           <section className="bg-white p-6 rounded-xl shadow-md">
             <h2 className="text-2xl font-semibold text-gray-900 flex items-center gap-2 mb-4">
-              <User size={22} /> 1. Information We Collect
+              <Users size={22} /> 1. User Accounts
             </h2>
             <ul className="list-disc pl-5 text-gray-700 space-y-1">
-              <li>Personal information: Name, Email, Date of Birth</li>
-              <li>Job-related information: Applications, Skills, Resume</li>
-              <li>Device and usage data including cookies</li>
+              <li>
+                Users must provide accurate information while registering.
+              </li>
+              <li>Keep your account credentials confidential.</li>
+              <li>
+                We are not responsible for unauthorized access to your account.
+              </li>
             </ul>
           </section>
 
-          {/* 2. How We Use Your Data */}
+          {/* 2. Acceptable Use */}
           <section className="bg-white p-6 rounded-xl shadow-md">
             <h2 className="text-2xl font-semibold text-gray-900 flex items-center gap-2 mb-4">
-              <Mail size={22} /> 2. How We Use Your Data
-            </h2>
-            <ul className="list-disc pl-5 text-gray-700 space-y-1">
-              <li>Match you with relevant jobs or freelancers</li>
-              <li>Send OTPs, status updates, and notifications</li>
-              <li>Enhance platform performance and user experience</li>
-            </ul>
-          </section>
-
-          {/* 3. Data Protection */}
-          <section className="bg-white p-6 rounded-xl shadow-md">
-            <h2 className="text-2xl font-semibold text-gray-900 flex items-center gap-2 mb-4">
-              <Lock size={22} /> 3. Data Protection
+              <CheckCircle size={22} /> 2. Acceptable Use
             </h2>
             <p className="text-gray-700">
-              We implement encryption, secure servers, and access controls to
-              keep your data safe.
+              You agree not to misuse the platform, post illegal content, or
+              engage in activities that disrupt services.
             </p>
           </section>
 
-          {/* 4. Your Rights */}
-          <section className="bg-white p-6 rounded-xl shadow-md">
-            <h2 className="text-2xl font-semibold text-gray-900 mb-4">
-              4. Your Rights
-            </h2>
-            <ul className="list-disc pl-5 text-gray-700 space-y-1">
-              <li>Request to view or delete your data</li>
-              <li>Control communication preferences</li>
-              <li>Withdraw consent at any time</li>
-            </ul>
-          </section>
-
-          {/* 5. Cookies */}
+          {/* 3. Intellectual Property */}
           <section className="bg-white p-6 rounded-xl shadow-md">
             <h2 className="text-2xl font-semibold text-gray-900 flex items-center gap-2 mb-4">
-              <Cookie size={22} /> 5. Cookies
+              <ShieldCheck size={22} /> 3. Intellectual Property
             </h2>
             <p className="text-gray-700">
-              Cookies help personalize your experience and improve the site. You
-              may disable them in your browser settings.
+              All content, logos, and materials on WorkBridge are the property
+              of WorkBridge and protected by intellectual property laws.
             </p>
           </section>
 
-          {/* 6. Compliance */}
+          {/* 4. Privacy */}
           <section className="bg-white p-6 rounded-xl shadow-md">
-            <h2 className="text-2xl font-semibold text-gray-900 mb-4">
-              6. Compliance
+            <h2 className="text-2xl font-semibold text-gray-900 flex items-center gap-2 mb-4">
+              <Lock size={22} /> 4. Privacy
             </h2>
             <p className="text-gray-700">
-              We adhere to GDPR, IT Act, and other global privacy standards to
-              protect your information.
+              Your privacy is important. Please review our Privacy Policy to
+              understand how your data is handled.
+            </p>
+          </section>
+
+          {/* 5. Termination */}
+          <section className="bg-white p-6 rounded-xl shadow-md">
+            <h2 className="text-2xl font-semibold text-gray-900 flex items-center gap-2 mb-4">
+              <FileText size={22} /> 5. Termination
+            </h2>
+            <p className="text-gray-700">
+              We reserve the right to suspend or terminate accounts that violate
+              our terms or engage in harmful activities.
+            </p>
+          </section>
+
+          {/* 6. Limitation of Liability */}
+          <section className="bg-white p-6 rounded-xl shadow-md">
+            <h2 className="text-2xl font-semibold text-gray-900 flex items-center gap-2 mb-4">
+              <ShieldCheck size={22} /> 6. Limitation of Liability
+            </h2>
+            <p className="text-gray-700">
+              WorkBridge is not liable for any damages resulting from your use
+              of the platform, including data loss or service interruptions.
             </p>
           </section>
 
@@ -91,7 +102,7 @@ const PrivacyPolicy = () => {
               7. Contact Us
             </h2>
             <p className="text-gray-700 mb-2">
-              If you have any questions or concerns:
+              For any questions regarding our Terms & Conditions:
             </p>
             <a
               href="mailto:its.freelancervibe@gmail.com"
@@ -149,4 +160,4 @@ const PrivacyPolicy = () => {
   );
 };
 
-export default PrivacyPolicy;
+export default TermsAndConditions;

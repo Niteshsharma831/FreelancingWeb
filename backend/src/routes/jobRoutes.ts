@@ -7,6 +7,7 @@ import {
   updateJob,
   deleteJob,
   getJobsByFreelancer,
+  createJobsBulk,
 } from "../controllers/jobController";
 import { authMiddleware } from "../middlewares/auth";
 
@@ -22,5 +23,8 @@ router.post("/create", authMiddleware, createJob);
 router.get("/my-jobs", authMiddleware, getMyJobs);  // freelancer get thier posted Jobs
 router.put("/update/:id", authMiddleware, updateJob);
 router.delete("/delete/:jobId", authMiddleware, deleteJob);
+
+router.post("/bulk", authMiddleware, createJobsBulk);
+
 
 export default router;

@@ -8,7 +8,8 @@ dotenv.config();
 const app = express();
 
 // ✅ Middleware order matters
-app.use(express.json());
+app.use(express.json({ limit: '50mb' })); // increase to 50 MB
+app.use(express.urlencoded({ limit: '50mb', extended: true }));
 app.use(cookieParser());
 
 // ✅ Allow both local and deployed frontend

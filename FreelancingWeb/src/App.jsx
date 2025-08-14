@@ -20,6 +20,8 @@ import FreelancerAuth from "./features/dashboard/FreelancerAuth";
 import PrivacyPolicy from "./pages/PolicyPage";
 import JobDetailsPage from "./context/JobDetailsPage";
 import InternshipPage from "./pages/InternshipPage";
+import TermsAndConditions from "./pages/TermsAndConditions";
+import Services from "./pages/Services";
 
 const App = () => {
   const [user, setUser] = useState(null);
@@ -67,6 +69,8 @@ const App = () => {
             <Route path="/alljobs" element={<JobPage />} />
             <Route path="/internships" element={<InternshipPage />} />
             <Route path="/privacy-policy" element={<PrivacyPolicy />} />
+            <Route path="/services" element={<Services />} />
+            <Route path="/ternandconditions" element={<TermsAndConditions />} />
             <Route path="/job/:id" element={<JobDetailsPage />} />
             <Route
               path="/myjobs"

@@ -1,17 +1,62 @@
 import React, { useEffect, useState } from "react";
 import axios from "axios";
-import { FaMapMarkerAlt, FaClock, FaMoneyBillAlt } from "react-icons/fa";
+import {
+  FaMapMarkerAlt,
+  FaClock,
+  FaMoneyBillAlt,
+  FaFilter,
+  FaChevronDown,
+} from "react-icons/fa";
 import { toast, ToastContainer } from "react-toastify";
 import "react-toastify/dist/ReactToastify.css";
 import { useNavigate } from "react-router-dom";
 
+const indianStates = [
+  "Andhra Pradesh",
+  "Arunachal Pradesh",
+  "Assam",
+  "Bihar",
+  "Chhattisgarh",
+  "Goa",
+  "Gujarat",
+  "Haryana",
+  "Himachal Pradesh",
+  "Jharkhand",
+  "Karnataka",
+  "Kerala",
+  "Madhya Pradesh",
+  "Maharashtra",
+  "Manipur",
+  "Meghalaya",
+  "Mizoram",
+  "Nagaland",
+  "Odisha",
+  "Punjab",
+  "Rajasthan",
+  "Sikkim",
+  "Tamil Nadu",
+  "Telangana",
+  "Tripura",
+  "Uttar Pradesh",
+  "Uttarakhand",
+  "West Bengal",
+  "Remote",
+];
+
 const InternshipPage = () => {
-  const [jobs, setJobs] = useState([]);
+  const [internships, setInternships] = useState([]);
   const [loading, setLoading] = useState(true);
   const [expandedJob, setExpandedJob] = useState(null);
   const [proposalText, setProposalText] = useState("");
   const [appliedJobIds, setAppliedJobIds] = useState([]);
   const [submitting, setSubmitting] = useState(false);
+  const [filters, setFilters] = useState({
+    location: "",
+    skills: "",
+    duration: "",
+    experience: "",
+  });
+  const [mobileFilterOpen, setMobileFilterOpen] = useState(false);
 
   const token = localStorage.getItem("token");
   const navigate = useNavigate();
@@ -29,10 +74,18 @@ const InternshipPage = () => {
             : Promise.resolve({ data: [] }),
         ]);
 
-        const internships = jobsRes.data.filter(
+        const internshipList = jobsRes.data.filter(
           (job) => job.jobType === "Internship"
         );
-        setJobs(internships);
+
+        // Fix: Mark Remote if not in Indian states
+        internshipList.forEach((job) => {
+          if (!indianStates.includes(job.location)) {
+            job.location = "Remote";
+          }
+        });
+
+        setInternships(internshipList);
 
         const appliedIds = appliedRes.data.map((app) =>
           typeof app.jobId === "object" ? app.jobId._id : app.jobId
@@ -40,18 +93,26 @@ const InternshipPage = () => {
         setAppliedJobIds(appliedIds);
       } catch (err) {
         console.error("Error fetching internships:", err);
-        toast.error("Failed to load internships");
+        toast.error("Failed to load internships.");
       } finally {
         setLoading(false);
       }
     };
-
     fetchInternships();
   }, [token]);
 
-  const handleViewDetails = (jobId) => {
-    navigate(`/job/${jobId}`);
+  const handleFilterChange = (field, value) => {
+    setFilters((prev) => ({ ...prev, [field]: value }));
   };
+
+  const filteredInternships = internships.filter((job) => {
+    return (
+      (!filters.location || job.location === filters.location) &&
+      (!filters.skills || job.skillsRequired.includes(filters.skills)) &&
+      (!filters.duration || job.duration === filters.duration) &&
+      (!filters.experience || job.experience === filters.experience)
+    );
+  });
 
   const handleApplyClick = (job) => {
     if (!token) {
@@ -59,30 +120,30 @@ const InternshipPage = () => {
       setTimeout(() => navigate("/login"), 1500);
       return;
     }
-
-    const isSmallScreen = window.innerWidth < 1024; // Tailwind lg breakpoint
+    const isSmallScreen = window.innerWidth < 1024;
     if (isSmallScreen) {
-      navigate(`/job/${job._id}`);
+      navigate(`/internship/${job._id}`);
       return;
     }
-
     if (appliedJobIds.includes(job._id)) {
-      toast.success("✅ Already applied for this internship.");
+      toast.success("✅ You have already applied for this internship.");
       setExpandedJob(null);
       return;
     }
-
     setExpandedJob(job);
     setProposalText("");
+  };
+
+  const handleViewDetails = (jobId) => {
+    navigate(`/job/${jobId}`);
   };
 
   const submitProposal = async (e) => {
     e.preventDefault();
     if (!proposalText.trim()) {
-      toast.warn("Please write your proposal.");
+      toast.warn("Please write a cover letter.");
       return;
     }
-
     setSubmitting(true);
     try {
       const res = await axios.post(
@@ -94,147 +155,211 @@ const InternshipPage = () => {
       setAppliedJobIds((prev) => [...prev, expandedJob._id]);
       setExpandedJob(null);
     } catch (err) {
-      console.error("Error applying:", err);
-      const errorMsg =
-        err.response?.data?.error || "Failed to apply. Try again.";
-      toast.error(errorMsg);
+      console.error("Application failed:", err);
+      toast.error(
+        err.response?.data?.error || "❌ Failed to apply. Try again."
+      );
     } finally {
       setSubmitting(false);
     }
   };
 
+  const DropdownFilter = ({ label, field, options }) => {
+    const [open, setOpen] = useState(false);
+    return (
+      <div className="border-b border-gray-200 pb-2">
+        <button
+          onClick={() => setOpen(!open)}
+          className="flex justify-between items-center w-full py-2 text-gray-800 font-medium"
+        >
+          {label}
+          <FaChevronDown
+            className={`transition-transform ${open ? "rotate-180" : ""}`}
+          />
+        </button>
+        {open && (
+          <div className="mt-2 space-y-1 max-h-48 overflow-y-auto pr-1">
+            {options.map((opt, idx) => (
+              <div key={idx} className="flex items-center">
+                <input
+                  type="radio"
+                  name={field}
+                  value={opt}
+                  checked={filters[field] === opt}
+                  onChange={(e) => handleFilterChange(field, e.target.value)}
+                  className="mr-2"
+                />
+                <label>{opt}</label>
+              </div>
+            ))}
+            <button
+              className="text-sm text-blue-600 mt-1"
+              onClick={() => handleFilterChange(field, "")}
+            >
+              Clear
+            </button>
+          </div>
+        )}
+      </div>
+    );
+  };
+
   if (loading) {
     return (
-      <div className="flex justify-center items-center h-screen">
-        <p className="text-lg font-medium animate-pulse">
+      <div className="flex justify-center items-center h-screen bg-gradient-to-br from-indigo-100 to-purple-200">
+        <p className="text-lg text-gray-700 font-medium animate-pulse">
           Loading internships...
         </p>
       </div>
     );
   }
 
-  return (
-    <div className="min-h-screen bg-gradient-to-br from-indigo-100 via-white to-purple-100 p-6">
-      <ToastContainer position="top-center" autoClose={3000} />
-      <h1 className="text-4xl font-bold text-center mb-8">
-        🎓 Internship Vacancies
-      </h1>
+  const skills = [...new Set(internships.flatMap((j) => j.skillsRequired))];
+  const durations = [...new Set(internships.map((j) => j.duration))];
+  const experiences = [...new Set(internships.map((j) => j.experience))];
 
-      <div className="flex flex-col lg:flex-row gap-6">
-        <div
-          className={`flex-1 grid gap-6 grid-cols-1 sm:grid-cols-2 lg:${
-            expandedJob ? "grid-cols-3" : "grid-cols-4"
-          }`}
+  return (
+    <div className="min-h-screen bg-gradient-to-br from-indigo-100 via-white to-purple-100 mt-15">
+      <ToastContainer position="top-center" autoClose={3000} />
+
+      {/* Mobile filter button */}
+      <div className="lg:hidden px-4 mb-4">
+        <button
+          onClick={() => setMobileFilterOpen(true)}
+          className="flex items-center bg-indigo-600 text-white px-4 py-2 rounded-lg shadow-md"
         >
-          {jobs.map((job) => {
+          <FaFilter className="mr-2" /> Filters
+        </button>
+      </div>
+
+      <div className="flex">
+        {/* Desktop filter sidebar */}
+        <div className="hidden lg:block lg:w-1/4 xl:w-1/5 sticky top-0 h-screen bg-white p-4 shadow-lg border-r overflow-y-auto">
+          <h2 className="text-xl font-semibold mb-4">Filters</h2>
+          <DropdownFilter
+            label="Location"
+            field="location"
+            options={indianStates}
+          />
+          <DropdownFilter label="Skills" field="skills" options={skills} />
+          <DropdownFilter
+            label="Duration"
+            field="duration"
+            options={durations}
+          />
+          <DropdownFilter
+            label="Experience"
+            field="experience"
+            options={experiences}
+          />
+        </div>
+
+        {/* Internships scrollable */}
+        <div className="flex-1 lg:h-screen lg:overflow-y-auto p-4 grid gap-6 grid-cols-1 sm:grid-cols-2 lg:grid-cols-3">
+          {filteredInternships.map((job) => {
             const alreadyApplied = appliedJobIds.includes(job._id);
+            const isExpanded = expandedJob && expandedJob._id === job._id;
             return (
               <div
                 key={job._id}
-                className="bg-white rounded-xl shadow-lg hover:shadow-2xl transition-transform transform hover:-translate-y-1 p-6 border border-gray-100"
+                className="bg-white rounded-xl shadow-md p-5 hover:shadow-xl transition"
               >
-                <h2 className="text-xl font-semibold text-gray-900 mb-2">
-                  {job.title}
-                </h2>
-                <p className="text-gray-600 text-sm mb-4 leading-relaxed line-clamp-3">
-                  {job.description}
+                <h2 className="text-xl font-semibold mb-2">{job.title}</h2>
+                <p className="text-gray-600 text-sm mb-4">
+                  {job.description.slice(0, 120)}...
                 </p>
-
-                <div className="flex flex-wrap gap-2 mb-4">
-                  {job.skillsRequired.map((skill, index) => (
-                    <span
-                      key={index}
-                      className="bg-gradient-to-r from-indigo-100 to-indigo-200 text-indigo-800 px-3 py-1 rounded-full text-xs font-medium shadow-sm"
-                    >
-                      {skill}
-                    </span>
-                  ))}
+                <div className="text-sm text-gray-500 flex items-center mb-1">
+                  <FaMapMarkerAlt className="text-indigo-500 mr-1" />{" "}
+                  {job.location}
                 </div>
-
-                <div className="space-y-2 text-sm text-gray-500 mb-6">
-                  <div className="flex items-center gap-2">
-                    <FaMapMarkerAlt className="text-indigo-500" />{" "}
-                    {job.location}
-                  </div>
-                  <div className="flex items-center gap-2">
-                    <FaClock className="text-purple-500" /> {job.duration}
-                  </div>
-                  <div className="flex items-center gap-2">
-                    <FaMoneyBillAlt className="text-green-500" /> ₹{job.stipend}
-                  </div>
+                <div className="text-sm text-gray-500 flex items-center mb-1">
+                  <FaClock className="text-purple-500 mr-1" /> {job.duration}
                 </div>
-
-                {alreadyApplied && (
-                  <p className="text-green-700 font-medium text-sm mb-2">
-                    ✅ Already applied
-                  </p>
-                )}
-
-                <div className="flex gap-3">
+                <div className="text-sm text-gray-500 flex items-center mb-4">
+                  <FaMoneyBillAlt className="text-green-500 mr-1" /> Stipend: ₹
+                  {job.stipend}
+                </div>
+                <div className="flex justify-between">
                   <button
+                    className="bg-gray-200 px-3 py-1 rounded"
                     onClick={() => handleViewDetails(job._id)}
-                    className="flex-1 border border-indigo-500 text-indigo-500 hover:bg-indigo-50 px-4 py-2 rounded-lg font-medium transition"
                   >
                     View Details
                   </button>
                   <button
                     onClick={() => handleApplyClick(job)}
                     disabled={alreadyApplied}
-                    className={`flex-1 px-4 py-2 rounded-lg font-medium text-white transition ${
+                    className={`px-3 py-1 rounded text-white ${
                       alreadyApplied
-                        ? "bg-green-500 cursor-not-allowed"
+                        ? "bg-green-500"
                         : "bg-indigo-600 hover:bg-indigo-700"
                     }`}
                   >
                     {alreadyApplied ? "Applied" : "Apply"}
                   </button>
                 </div>
+
+                {/* Desktop proposal form */}
+                {isExpanded && !alreadyApplied && (
+                  <form onSubmit={submitProposal} className="mt-4">
+                    <textarea
+                      value={proposalText}
+                      onChange={(e) => setProposalText(e.target.value)}
+                      placeholder="Write your cover letter here..."
+                      className="w-full border p-2 rounded mb-2"
+                      rows="3"
+                    />
+                    <button
+                      type="submit"
+                      disabled={submitting}
+                      className="bg-green-600 hover:bg-green-700 text-white px-4 py-2 rounded"
+                    >
+                      {submitting ? "Submitting..." : "Submit Application"}
+                    </button>
+                  </form>
+                )}
               </div>
             );
           })}
         </div>
-
-        {/* Right-side proposal panel only on large screens */}
-        {expandedJob && (
-          <div className="lg:w-1/3">
-            <div className="sticky top-6 bg-white border border-gray-300 p-6 rounded-xl shadow-xl">
-              <h2 className="text-xl font-bold text-gray-800 mb-3">
-                ✍️ Apply for: {expandedJob.title}
-              </h2>
-
-              <form onSubmit={submitProposal}>
-                <textarea
-                  rows="6"
-                  placeholder="Introduce yourself, your experience, and why you're a great fit..."
-                  value={proposalText}
-                  onChange={(e) => setProposalText(e.target.value)}
-                  className="w-full border px-4 py-2 rounded-lg text-sm mb-3"
-                />
-                <div className="flex justify-end gap-2">
-                  <button
-                    type="button"
-                    onClick={() => setExpandedJob(null)}
-                    className="px-4 py-2 border rounded-lg text-gray-700 hover:bg-gray-100 text-sm"
-                  >
-                    Cancel
-                  </button>
-                  <button
-                    type="submit"
-                    disabled={submitting}
-                    className={`px-4 py-2 rounded-lg text-sm text-white transition ${
-                      submitting
-                        ? "bg-indigo-400 cursor-not-allowed"
-                        : "bg-indigo-600 hover:bg-indigo-700"
-                    }`}
-                  >
-                    {submitting ? "Submitting..." : "Submit Proposal"}
-                  </button>
-                </div>
-              </form>
-            </div>
-          </div>
-        )}
       </div>
+
+      {/* Mobile filter overlay */}
+      {mobileFilterOpen && (
+        <div className="fixed inset-0 bg-black bg-opacity-40 z-50 flex">
+          <div className="bg-white w-3/4 p-4 overflow-y-auto">
+            <div className="flex justify-between mb-4">
+              <h2 className="text-lg font-semibold">Filters</h2>
+              <button
+                onClick={() => setMobileFilterOpen(false)}
+                className="text-red-500"
+              >
+                Close
+              </button>
+            </div>
+            <DropdownFilter
+              label="Location"
+              field="location"
+              options={indianStates}
+            />
+            <DropdownFilter label="Skills" field="skills" options={skills} />
+            <DropdownFilter
+              label="Duration"
+              field="duration"
+              options={durations}
+            />
+            <DropdownFilter
+              label="Experience"
+              field="experience"
+              options={experiences}
+            />
+          </div>
+          <div
+            className="flex-1"
+            onClick={() => setMobileFilterOpen(false)}
+          ></div>
+        </div>
+      )}
     </div>
   );
 };

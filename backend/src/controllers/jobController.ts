@@ -276,3 +276,57 @@ export const getJobsByFreelancer = async (req: Request, res: Response) => {
     res.status(500).json({ error: "Failed to fetch freelancer's jobs" });
   }
 };
+
+
+export const createJobsBulk = async (req: Request, res: Response) => {
+  try {
+    const { id: freelancerId, role } = (req as any).user;
+
+    if (role !== "freelancer") {
+      return res.status(403).json({ error: "Only freelancers can post jobs" });
+    }
+
+    const jobs = req.body; // expecting an array of jobs
+    if (!Array.isArray(jobs) || jobs.length === 0) {
+      return res.status(400).json({ error: "No jobs provided" });
+    }
+
+    // Validate each job
+    const invalidJobs = jobs.filter(
+      job =>
+        !job.title ||
+        !job.description ||
+        !job.duration ||
+        !job.skillsRequired ||
+        !job.location ||
+        !job.jobMode ||
+        !job.jobType ||
+        !job.companyName ||
+        (job.jobType === "Job" && !job.ctc) ||
+        (job.jobType === "Internship" && !job.stipend)
+    );
+
+    if (invalidJobs.length > 0) {
+      return res.status(400).json({ error: "Some jobs are missing required fields" });
+    }
+
+    // Attach freelancerId and budget automatically
+    const jobsToInsert = jobs.map(job => ({
+      ...job,
+      postedBy: freelancerId,
+      budget: job.jobType === "Job" ? job.ctc : job.stipend,
+      stipend: job.jobType === "Internship" ? job.stipend : undefined,
+      ctc: job.jobType === "Job" ? job.ctc : undefined,
+    }));
+
+    const insertedJobs = await Job.insertMany(jobsToInsert);
+
+    res.status(201).json({
+      message: `${insertedJobs.length} jobs posted successfully`,
+      data: insertedJobs,
+    });
+  } catch (error: any) {
+    console.error("Bulk Create Jobs Error:", error);
+    res.status(500).json({ error: "Failed to create jobs", details: error.message });
+  }
+};
