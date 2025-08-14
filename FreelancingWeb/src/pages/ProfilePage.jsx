@@ -39,9 +39,12 @@ const ProfilePage = () => {
       }
 
       try {
-        const res = await axios.get("https://freelancingweb-plac.onrender.com/api/users/profile", {
-          headers: { Authorization: `Bearer ${token}` },
-        });
+        const res = await axios.get(
+          "https://freelancingweb-plac.onrender.com/api/users/profile",
+          {
+            headers: { Authorization: `Bearer ${token}` },
+          }
+        );
         setUser(res.data);
       } catch (err) {
         const errMsg =
@@ -87,10 +90,9 @@ const ProfilePage = () => {
           address,
           profilePic,
           skills: skills.split(",").map((s) => s.trim()),
-          resume: {
-            url: resumeUrl,
-            format: resumeFormat,
-          },
+          resume: resumeUrl
+            ? { url: resumeUrl, format: resumeFormat }
+            : undefined, // Resume optional
         },
       };
 
@@ -155,6 +157,14 @@ const ProfilePage = () => {
           <h2 className="text-xl font-bold text-gray-800">{user.name}</h2>
           <p className="text-gray-600">{user.email}</p>
           <p className="text-sm text-gray-500">User ID: {user._id}</p>
+
+          {/* Show "Complete your profile" if skills not added */}
+          {!user.profile?.skills?.length && (
+            <p className="text-red-600 text-sm font-medium">
+              Complete your profile!
+            </p>
+          )}
+
           <div className="flex flex-col gap-2 w-full pt-4">
             <button
               onClick={openModal}
@@ -268,7 +278,7 @@ const ProfilePage = () => {
               />
               <input
                 type="text"
-                placeholder="Resume URL"
+                placeholder="Resume URL (optional)"
                 value={resumeUrl}
                 onChange={(e) => setResumeUrl(e.target.value)}
                 className="w-full border px-4 py-2 rounded-lg"

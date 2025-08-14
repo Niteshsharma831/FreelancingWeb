@@ -135,7 +135,8 @@ const Navbar = ({ user: propUser, onLogout }) => {
             })}
 
             {/* User Menu */}
-            <div className="relative">
+            {/* User Menu */}
+            <div className="relative flex items-center space-x-2">
               <button
                 onClick={() =>
                   setOpenDropdown(openDropdown === "user" ? null : "user")
@@ -145,8 +146,19 @@ const Navbar = ({ user: propUser, onLogout }) => {
                 {user ? `Hi, ${firstName}` : "Login / Register"}
                 <ChevronDownIcon className="ml-1 w-4 h-4" />
               </button>
+
+              {/* 🔴 Update Profile next to Hi, Name */}
+              {user && !user.profileCompleted && (
+                <button
+                  onClick={() => (window.location.href = "/profile")}
+                  className="px-2 py-1 bg-red-600 text-white rounded-full shadow hover:bg-red-700 transition animate-pulse text-xs font-semibold"
+                >
+                  Update Profile
+                </button>
+              )}
+
               {openDropdown === "user" && (
-                <div className="absolute right-0 mt-2 w-48 bg-white shadow-md rounded z-30 py-2">
+                <div className="absolute right-0 top-full mt-2 w-48 bg-white shadow-md rounded z-30 py-2">
                   {user ? (
                     <>
                       <Link
@@ -171,29 +183,13 @@ const Navbar = ({ user: propUser, onLogout }) => {
                       </button>
                     </>
                   ) : (
-                    <>
-                      {/* <Link
-                        to="/register/student"
-                        onClick={closeMenus}
-                        className="block px-4 py-2 hover:bg-blue-50 transition"
-                      >
-                        Register as Student
-                      </Link> */}
-                      {/* <Link
-                        to="/register/recruiter"
-                        onClick={closeMenus}
-                        className="block px-4 py-2 hover:bg-blue-50 transition"
-                      >
-                        Register as Employer
-                      </Link> */}
-                      <Link
-                        to="/login"
-                        onClick={closeMenus}
-                        className="block px-4 py-2 hover:bg-blue-50 transition"
-                      >
-                        Login as User
-                      </Link>
-                    </>
+                    <Link
+                      to="/login"
+                      onClick={closeMenus}
+                      className="block px-4 py-2 hover:bg-blue-50 transition"
+                    >
+                      Login as User
+                    </Link>
                   )}
                 </div>
               )}
@@ -295,13 +291,13 @@ const Navbar = ({ user: propUser, onLogout }) => {
               >
                 Register as Employer
               </Link> */}
-              <Link
+              {/* <Link
                 to="/login"
                 onClick={closeMenus}
                 className="block py-1 text-gray-700 hover:bg-blue-50"
               >
                 Login as User
-              </Link>
+              </Link> */}
             </>
           )}
         </div>

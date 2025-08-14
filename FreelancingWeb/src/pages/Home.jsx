@@ -82,6 +82,7 @@ const HomePage = () => {
 
     return () => clearInterval(timer);
   }, []);
+
   const trainings = [
     {
       title: "MERN Stack Development",
@@ -239,13 +240,14 @@ const HomePage = () => {
               </motion.div>
             ))}
           </div>
-        </div>
-        <div class="flex justify-end mt-6 mb-6">
-          <button class="px-6 py-2 bg-gray-600 text-white rounded-lg hover:bg-gray-700 transition">
-            More Jobs
-          </button>
+          <div className="flex justify-end mt-6 mb-6">
+            <button className="px-6 py-2 bg-gray-600 text-white rounded-lg hover:bg-gray-700 transition">
+              More Jobs
+            </button>
+          </div>
         </div>
       </section>
+
       {/* Featured Categories */}
       <section className="py-10 bg-gray-50">
         <div className="max-w-6xl mx-auto px-4">
@@ -275,120 +277,19 @@ const HomePage = () => {
         </div>
       </section>
 
-      {/* Trusted By Section */}
-      <section className="bg-white py-12">
-        <div className="max-w-6xl mx-auto text-center">
-          <h2 className="text-2xl font-bold mb-6">
-            Trusted by Leading Companies
-          </h2>
-          <div className="flex flex-wrap justify-center items-center gap-8 opacity-70">
-            <img src="/logo1.png" alt="Company 1" className="h-10" />
-            <img src="/logo2.png" alt="Company 2" className="h-10" />
-            <img src="/logo3.png" alt="Company 3" className="h-10" />
-            <img src="/logo4.png" alt="Company 4" className="h-10" />
-          </div>
+      {/* Persistent Update Profile Button */}
+      {user && !user.profileCompleted && (
+        <div className="fixed bottom-6 right-6 z-50">
+          <button
+            onClick={() =>
+              (window.location.href = "http://localhost:5173/profile")
+            }
+            className="px-4 py-2 bg-blue-600 text-white rounded-full shadow-lg hover:bg-blue-700 transition flex items-center gap-2"
+          >
+            🔄 Update Profile
+          </button>
         </div>
-      </section>
-
-      {/* How It Works Section */}
-      <section className="bg-gray-50 py-16">
-        <div className="max-w-6xl mx-auto text-center">
-          <h2 className="text-3xl font-bold mb-12">How It Works</h2>
-          <div className="grid grid-cols-1 sm:grid-cols-3 gap-8">
-            <div className="p-6 bg-white rounded-lg shadow hover:shadow-lg transition">
-              <div className="text-blue-600 text-4xl mb-4">📝</div>
-              <h3 className="text-xl font-semibold mb-2">Create Profile</h3>
-              <p className="text-gray-600">
-                Sign up and tell us about your skills and experience.
-              </p>
-            </div>
-            <div className="p-6 bg-white rounded-lg shadow hover:shadow-lg transition">
-              <div className="text-green-600 text-4xl mb-4">🔍</div>
-              <h3 className="text-xl font-semibold mb-2">Find Opportunities</h3>
-              <p className="text-gray-600">
-                Search jobs and projects that match your profile.
-              </p>
-            </div>
-            <div className="p-6 bg-white rounded-lg shadow hover:shadow-lg transition">
-              <div className="text-purple-600 text-4xl mb-4">🚀</div>
-              <h3 className="text-xl font-semibold mb-2">Get Hired</h3>
-              <p className="text-gray-600">
-                Apply, connect, and start your career journey.
-              </p>
-            </div>
-          </div>
-        </div>
-      </section>
-
-      {/* Testimonials */}
-      <section className="bg-white py-16">
-        <div className="max-w-6xl mx-auto text-center">
-          <h2 className="text-3xl font-bold mb-12">What Our Users Say</h2>
-          <div className="grid grid-cols-1 md:grid-cols-3 gap-8">
-            {[
-              {
-                name: "Sarah M.",
-                text: "This platform helped me land my dream job in just 2 weeks!",
-                img: "/user1.jpg",
-              },
-              {
-                name: "James L.",
-                text: "I found amazing freelancers for my startup in days!",
-                img: "/user2.jpg",
-              },
-              {
-                name: "Priya K.",
-                text: "The job alerts are a game changer for my career.",
-                img: "/user3.jpg",
-              },
-            ].map((t, i) => (
-              <div
-                key={i}
-                className="p-6 bg-gray-50 rounded-lg shadow hover:shadow-lg transition"
-              >
-                <img
-                  src={t.img}
-                  alt={t.name}
-                  className="w-16 h-16 mx-auto rounded-full mb-4"
-                />
-                <p className="italic text-gray-600 mb-2">"{t.text}"</p>
-                <p className="font-semibold">{t.name}</p>
-              </div>
-            ))}
-          </div>
-        </div>
-      </section>
-      <section className="bg-gray-50 py-12">
-        <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
-          <h2 className="text-3xl font-bold text-gray-800 mb-8 text-center">
-            🔥 New Trainings for You
-          </h2>
-
-          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-8">
-            {trainings.map((training, index) => (
-              <div
-                key={index}
-                className="bg-white shadow-md rounded-xl overflow-hidden hover:shadow-xl transition duration-300"
-              >
-                <img
-                  src={training.image}
-                  alt={training.title}
-                  className="w-full h-48 object-cover"
-                />
-                <div className="p-6">
-                  <h3 className="text-xl font-semibold text-gray-800">
-                    {training.title}
-                  </h3>
-                  <p className="text-gray-600 mt-2">{training.description}</p>
-                  <button className="mt-4 px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700">
-                    Enroll Now
-                  </button>
-                </div>
-              </div>
-            ))}
-          </div>
-        </div>
-      </section>
+      )}
     </div>
   );
 };
