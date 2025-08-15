@@ -1,4 +1,4 @@
-import React, { useEffect, useState, useMemo, useCallback } from "react";
+import React, { useEffect, useMemo, useState, useCallback } from "react";
 import axios from "axios";
 import {
   FaMapMarkerAlt,
@@ -11,7 +11,7 @@ import { toast, ToastContainer } from "react-toastify";
 import "react-toastify/dist/ReactToastify.css";
 import { useNavigate } from "react-router-dom";
 
-const indianStates = [
+const INDIAN_STATES = [
   "Andhra Pradesh",
   "Arunachal Pradesh",
   "Assam",
@@ -43,73 +43,149 @@ const indianStates = [
   "Remote",
 ];
 
-const ITEMS_PER_PAGE = 20;
+const ITEMS_PER_PAGE = 21;
+
+const DropdownFilter = ({ label, field, options, value, onChange }) => {
+  const [open, setOpen] = useState(false);
+  return (
+    <div className="border-b border-gray-200 pb-2">
+      <button
+        onClick={() => setOpen((v) => !v)}
+        className="flex justify-between items-center w-full py-2 text-gray-800 font-medium"
+      >
+        {label}
+        <FaChevronDown
+          className={`transition-transform ${open ? "rotate-180" : ""}`}
+        />
+      </button>
+      {open && (
+        <div className="mt-2 space-y-1 max-h-48 overflow-y-auto pr-1">
+          {options.map((opt, idx) => (
+            <div key={idx} className="flex items-center">
+              <input
+                type="radio"
+                name={field}
+                value={opt}
+                checked={value === opt}
+                onChange={(e) => onChange(field, e.target.value)}
+                className="mr-2"
+              />
+              <label>{opt}</label>
+            </div>
+          ))}
+          <button
+            className="text-sm text-blue-600 mt-1"
+            onClick={() => onChange(field, "")}
+          >
+            Clear
+          </button>
+        </div>
+      )}
+    </div>
+  );
+};
 
 const InternshipPage = () => {
+  // Accumulated jobs fetched from server (we append server pages)
   const [internships, setInternships] = useState([]);
-  const [page, setPage] = useState(1);
-  const [hasMore, setHasMore] = useState(true);
   const [loading, setLoading] = useState(true);
+
+  // UI pagination (exactly 20 per page)
+  const [uiPage, setUiPage] = useState(1);
+
+  // Server pagination (when UI needs more data, we fetch next server page)
+  const [serverPage, setServerPage] = useState(1);
+  const [serverHasMore, setServerHasMore] = useState(true);
+
+  // Filters (single-select dropdowns here)
   const [filters, setFilters] = useState({
     location: "",
     skills: "",
     duration: "",
     experience: "",
   });
+
+  // Applications & apply flow
   const [appliedJobIds, setAppliedJobIds] = useState([]);
   const [expandedJob, setExpandedJob] = useState(null);
   const [proposalText, setProposalText] = useState("");
   const [submitting, setSubmitting] = useState(false);
+
   const [mobileFilterOpen, setMobileFilterOpen] = useState(false);
 
   const token = localStorage.getItem("token");
   const navigate = useNavigate();
 
-  const fetchInternships = useCallback(
-    async (reset = false) => {
-      if (!hasMore && !reset) return;
-
+  // -------- Fetch applications once (on mount / token change) --------
+  useEffect(() => {
+    const fetchApplications = async () => {
       try {
-        if (reset) setLoading(true);
-        const params = {
-          jobType: "Internship",
-          location: filters.location,
-          skills: filters.skills,
-          duration: filters.duration,
-          experience: filters.experience,
-          page: reset ? 1 : page,
-          limit: ITEMS_PER_PAGE,
-        };
-
-        const [jobsRes, appliedRes] = await Promise.all([
-          axios.get("https://freelancingweb-plac.onrender.com/api/jobs/all", {
-            withCredentials: true,
-          }),
-          token
-            ? axios.get(
-                "https://freelancingweb-plac.onrender.com/api/applications/my-applications",
-                {
-                  headers: { Authorization: `Bearer ${token}` },
-                }
-              )
-            : Promise.resolve({ data: [] }),
-        ]);
-
-        let fetchedJobs = jobsRes.data.jobs || jobsRes.data; // Adjust depending on backend response
-        fetchedJobs.forEach((job) => {
-          if (!indianStates.includes(job.location)) job.location = "Remote";
-        });
-
-        setInternships((prev) =>
-          reset ? fetchedJobs : [...prev, ...fetchedJobs]
+        if (!token) {
+          setAppliedJobIds([]);
+          return;
+        }
+        const appliedRes = await axios.get(
+          "https://freelancingweb-plac.onrender.com/api/applications/my-applications",
+          { headers: { Authorization: `Bearer ${token}` } }
         );
-        setPage((prev) => (reset ? 2 : prev + 1));
-        setHasMore(fetchedJobs.length === ITEMS_PER_PAGE);
-
-        const appliedIds = appliedRes.data.map((app) =>
+        const appliedIds = (appliedRes.data || []).map((app) =>
           typeof app.jobId === "object" ? app.jobId._id : app.jobId
         );
         setAppliedJobIds(appliedIds);
+      } catch (err) {
+        console.error("Error fetching applications:", err);
+        toast.error("Failed to load your applications.");
+      }
+    };
+    fetchApplications();
+  }, [token]);
+
+  // -------- Build server params from filters --------
+  const buildParams = useCallback(
+    (page) => {
+      const params = {
+        page,
+        limit: ITEMS_PER_PAGE,
+        jobType: "Internship",
+      };
+      if (filters.location) params.location = filters.location;
+      if (filters.skills) params.skills = filters.skills;
+      if (filters.duration) params.duration = filters.duration;
+      if (filters.experience) params.experience = filters.experience;
+      return params;
+    },
+    [filters]
+  );
+
+  // -------- Fetch a page from the server and append --------
+  const fetchServerPage = useCallback(
+    async (pageToFetch) => {
+      setLoading(true);
+      try {
+        const res = await axios.get(
+          "https://freelancingweb-plac.onrender.com/api/jobs/all",
+          { params: buildParams(pageToFetch), withCredentials: true }
+        );
+
+        let incoming = Array.isArray(res.data)
+          ? res.data
+          : res.data?.jobs || [];
+
+        // Normalize location to "Remote" if it's not in the list
+        incoming = incoming.map((job) => ({
+          ...job,
+          location: INDIAN_STATES.includes(job.location)
+            ? job.location
+            : "Remote",
+        }));
+
+        setInternships((prev) => {
+          const seen = new Set(prev.map((j) => j._id));
+          const deduped = incoming.filter((j) => !seen.has(j._id));
+          return [...prev, ...deduped];
+        });
+
+        setServerHasMore(incoming.length === ITEMS_PER_PAGE);
       } catch (err) {
         console.error("Error fetching internships:", err);
         toast.error("Failed to load internships.");
@@ -117,15 +193,77 @@ const InternshipPage = () => {
         setLoading(false);
       }
     },
-    [filters, page, token, hasMore]
+    [buildParams]
   );
 
+  // -------- Initial load & when filters change: reset everything --------
   useEffect(() => {
-    fetchInternships(true); // Reset when filters change
-  }, [filters, fetchInternships]);
+    const resetAndFetch = async () => {
+      setInternships([]);
+      setUiPage(1);
+      setServerPage(1);
+      setServerHasMore(true);
+      await fetchServerPage(1);
+    };
+    resetAndFetch();
+  }, [filters, fetchServerPage]);
 
-  const handleFilterChange = (field, value) =>
+  // -------- Derived filter options from currently loaded internships --------
+  const skillOptions = useMemo(
+    () => [
+      ...new Set(
+        internships.flatMap((j) =>
+          Array.isArray(j.skillsRequired) ? j.skillsRequired : []
+        )
+      ),
+    ],
+    [internships]
+  );
+  const durationOptions = useMemo(
+    () => [...new Set(internships.map((j) => j.duration).filter(Boolean))],
+    [internships]
+  );
+  const experienceOptions = useMemo(
+    () => [...new Set(internships.map((j) => j.experience).filter(Boolean))],
+    [internships]
+  );
+
+  // -------- Client-side filtered list (in case backend didn't filter some fields) --------
+  const clientFiltered = useMemo(() => {
+    return internships.filter((job) => {
+      const locOk = !filters.location || job.location === filters.location;
+      const durOk = !filters.duration || job.duration === filters.duration;
+      const expOk =
+        !filters.experience || job.experience === filters.experience;
+      const skillOk =
+        !filters.skills ||
+        (Array.isArray(job.skillsRequired) &&
+          job.skillsRequired.includes(filters.skills));
+      // Ensure Internship only (defensive)
+      const typeOk = job.jobType === "Internship";
+      return locOk && durOk && expOk && skillOk && typeOk;
+    });
+  }, [internships, filters]);
+
+  // -------- UI pagination over clientFiltered --------
+  const totalPages = Math.max(
+    1,
+    Math.ceil(clientFiltered.length / ITEMS_PER_PAGE)
+  );
+  const start = (uiPage - 1) * ITEMS_PER_PAGE;
+  const end = start + ITEMS_PER_PAGE;
+  const pagedInternships = clientFiltered.slice(start, end);
+
+  // Keep uiPage in range
+  useEffect(() => {
+    if (uiPage > totalPages) setUiPage(totalPages);
+    if (uiPage < 1) setUiPage(1);
+  }, [uiPage, totalPages]);
+
+  // -------- Handlers --------
+  const handleFilterChange = (field, value) => {
     setFilters((prev) => ({ ...prev, [field]: value }));
+  };
 
   const handleApplyClick = (job) => {
     if (!token) {
@@ -175,75 +313,41 @@ const InternshipPage = () => {
     }
   };
 
-  const DropdownFilter = ({ label, field, options }) => {
-    const [open, setOpen] = useState(false);
-    return (
-      <div className="border-b border-gray-200 pb-2">
-        <button
-          onClick={() => setOpen(!open)}
-          className="flex justify-between items-center w-full py-2 text-gray-800 font-medium"
-        >
-          {label}
-          <FaChevronDown
-            className={`transition-transform ${open ? "rotate-180" : ""}`}
-          />
-        </button>
-        {open && (
-          <div className="mt-2 space-y-1 max-h-48 overflow-y-auto pr-1">
-            {options.map((opt, idx) => (
-              <div key={idx} className="flex items-center">
-                <input
-                  type="radio"
-                  name={field}
-                  value={opt}
-                  checked={filters[field] === opt}
-                  onChange={(e) => handleFilterChange(field, e.target.value)}
-                  className="mr-2"
-                />
-                <label>{opt}</label>
-              </div>
-            ))}
-            <button
-              className="text-sm text-blue-600 mt-1"
-              onClick={() => handleFilterChange(field, "")}
-            >
-              Clear
-            </button>
-          </div>
-        )}
-      </div>
-    );
+  const handlePrev = () => {
+    setUiPage((p) => Math.max(1, p - 1));
+    window.scrollTo({ top: 0, behavior: "smooth" });
   };
 
-  // Infinite scroll
-  const handleScroll = () => {
-    if (
-      window.innerHeight + document.documentElement.scrollTop + 100 >=
-        document.documentElement.scrollHeight &&
-      !loading &&
-      hasMore
-    ) {
-      fetchInternships();
+  const handleNext = async () => {
+    // If next UI page exists locally, just page forward
+    if (uiPage < totalPages) {
+      setUiPage((p) => p + 1);
+      window.scrollTo({ top: 0, behavior: "smooth" });
+      return;
+    }
+
+    // Otherwise, try to fetch another server page if available
+    if (serverHasMore && !loading) {
+      const nextServer = serverPage + 1;
+      await fetchServerPage(nextServer);
+      setServerPage(nextServer);
+      // after fetch, if new items added, advance one UI page
+      setTimeout(() => {
+        const newTotal = Math.max(
+          1,
+          Math.ceil(clientFiltered.length / ITEMS_PER_PAGE)
+        );
+        if (uiPage < newTotal) {
+          setUiPage((p) => p + 1);
+          window.scrollTo({ top: 0, behavior: "smooth" });
+        } else if (!serverHasMore) {
+          toast.info("No more internships to show.");
+        }
+      }, 0);
+    } else {
+      toast.info("No more internships to show.");
     }
   };
-  useEffect(() => {
-    window.addEventListener("scroll", handleScroll);
-    return () => window.removeEventListener("scroll", handleScroll);
-  }, [loading, hasMore, fetchInternships]);
-
-  // Prepare unique filter options
-  const skills = useMemo(
-    () => [...new Set(internships.flatMap((j) => j.skillsRequired))],
-    [internships]
-  );
-  const durations = useMemo(
-    () => [...new Set(internships.map((j) => j.duration))],
-    [internships]
-  );
-  const experiences = useMemo(
-    () => [...new Set(internships.map((j) => j.experience))],
-    [internships]
-  );
 
   return (
     <div className="min-h-screen bg-gradient-to-br from-indigo-100 via-white to-purple-100 mt-15">
@@ -266,31 +370,45 @@ const InternshipPage = () => {
           <DropdownFilter
             label="Location"
             field="location"
-            options={indianStates}
+            options={INDIAN_STATES}
+            value={filters.location}
+            onChange={handleFilterChange}
           />
-          <DropdownFilter label="Skills" field="skills" options={skills} />
+          <DropdownFilter
+            label="Skills"
+            field="skills"
+            options={skillOptions}
+            value={filters.skills}
+            onChange={handleFilterChange}
+          />
           <DropdownFilter
             label="Duration"
             field="duration"
-            options={durations}
+            options={durationOptions}
+            value={filters.duration}
+            onChange={handleFilterChange}
           />
           <DropdownFilter
             label="Experience"
             field="experience"
-            options={experiences}
+            options={experienceOptions}
+            value={filters.experience}
+            onChange={handleFilterChange}
           />
         </div>
 
-        {/* Internships */}
-        <div className="flex-1 lg:h-screen lg:overflow-y-auto p-4 grid gap-6 grid-cols-1 sm:grid-cols-2 lg:grid-cols-3">
-          {loading && internships.length === 0
-            ? Array.from({ length: ITEMS_PER_PAGE }).map((_, i) => (
+        {/* Internships list */}
+        <div className="flex-1 p-4">
+          <div className="grid gap-6 grid-cols-1 sm:grid-cols-2 lg:grid-cols-3">
+            {loading && internships.length === 0 ? (
+              Array.from({ length: 6 }).map((_, i) => (
                 <div
                   key={i}
-                  className="bg-white rounded-xl shadow-md p-5 animate-pulse h-56"
-                ></div>
+                  className="bg-gray-200 rounded-xl h-40 animate-pulse"
+                />
               ))
-            : internships.map((job) => {
+            ) : pagedInternships.length > 0 ? (
+              pagedInternships.map((job) => {
                 const alreadyApplied = appliedJobIds.includes(job._id);
                 const isExpanded = expandedJob && expandedJob._id === job._id;
                 return (
@@ -300,7 +418,7 @@ const InternshipPage = () => {
                   >
                     <h2 className="text-xl font-semibold mb-2">{job.title}</h2>
                     <p className="text-gray-600 text-sm mb-4">
-                      {job.description.slice(0, 120)}...
+                      {(job.description || "").slice(0, 120)}...
                     </p>
                     <div className="text-sm text-gray-500 flex items-center mb-1">
                       <FaMapMarkerAlt className="text-indigo-500 mr-1" />{" "}
@@ -333,13 +451,14 @@ const InternshipPage = () => {
                         {alreadyApplied ? "Applied" : "Apply"}
                       </button>
                     </div>
+
                     {isExpanded && !alreadyApplied && (
                       <form onSubmit={submitProposal} className="mt-4">
                         <textarea
                           value={proposalText}
                           onChange={(e) => setProposalText(e.target.value)}
                           placeholder="Write your cover letter here..."
-                          className="w-full border p-2 rounded mb-2"
+                          className="w-full border p-2 rounded mb-2 resize-none"
                           rows="3"
                         />
                         <button
@@ -353,10 +472,38 @@ const InternshipPage = () => {
                     )}
                   </div>
                 );
-              })}
-          {!hasMore && (
-            <p className="text-center col-span-full text-gray-500 mt-4">
-              No more internships
+              })
+            ) : (
+              <p className="text-gray-700 col-span-full text-center">
+                No internships found with selected filters.
+              </p>
+            )}
+          </div>
+
+          {/* UI Pagination (exactly 20 items per page) */}
+          <div className="flex justify-center items-center gap-4 mt-6">
+            <button
+              onClick={handlePrev}
+              disabled={uiPage === 1}
+              className="bg-gray-300 px-4 py-2 rounded disabled:opacity-50"
+            >
+              Previous
+            </button>
+            <span className="font-medium">
+              Page {uiPage} of {totalPages}
+            </span>
+            <button
+              onClick={handleNext}
+              className="bg-gray-300 px-4 py-2 rounded"
+              disabled={loading && !serverHasMore && uiPage >= totalPages}
+            >
+              Next
+            </button>
+          </div>
+
+          {!loading && pagedInternships.length === 0 && serverHasMore && (
+            <p className="text-center text-sm text-gray-500 mt-2">
+              Try changing filters.
             </p>
           )}
         </div>
@@ -378,24 +525,33 @@ const InternshipPage = () => {
             <DropdownFilter
               label="Location"
               field="location"
-              options={indianStates}
+              options={INDIAN_STATES}
+              value={filters.location}
+              onChange={handleFilterChange}
             />
-            <DropdownFilter label="Skills" field="skills" options={skills} />
+            <DropdownFilter
+              label="Skills"
+              field="skills"
+              options={skillOptions}
+              value={filters.skills}
+              onChange={handleFilterChange}
+            />
             <DropdownFilter
               label="Duration"
               field="duration"
-              options={durations}
+              options={durationOptions}
+              value={filters.duration}
+              onChange={handleFilterChange}
             />
             <DropdownFilter
               label="Experience"
               field="experience"
-              options={experiences}
+              options={experienceOptions}
+              value={filters.experience}
+              onChange={handleFilterChange}
             />
           </div>
-          <div
-            className="flex-1"
-            onClick={() => setMobileFilterOpen(false)}
-          ></div>
+          <div className="flex-1" onClick={() => setMobileFilterOpen(false)} />
         </div>
       )}
     </div>
