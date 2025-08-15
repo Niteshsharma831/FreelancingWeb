@@ -45,11 +45,21 @@ const INDIAN_STATES = [
 
 const ITEMS_PER_PAGE = 21;
 
-const DropdownFilter = ({ label, field, options, value, onChange }) => {
+// --------- Checkbox Filter for multi-select ---------
+const CheckboxFilter = ({
+  label,
+  field,
+  options,
+  selectedValues,
+  onToggle,
+}) => {
   const [open, setOpen] = useState(false);
+
   return (
     <div className="border-b border-gray-200 pb-2">
+      {/* Toggle dropdown */}
       <button
+        type="button"
         onClick={() => setOpen((v) => !v)}
         className="flex justify-between items-center w-full py-2 text-gray-800 font-medium"
       >
@@ -58,24 +68,30 @@ const DropdownFilter = ({ label, field, options, value, onChange }) => {
           className={`transition-transform ${open ? "rotate-180" : ""}`}
         />
       </button>
+
       {open && (
         <div className="mt-2 space-y-1 max-h-48 overflow-y-auto pr-1">
-          {options.map((opt, idx) => (
-            <div key={idx} className="flex items-center">
-              <input
-                type="radio"
-                name={field}
-                value={opt}
-                checked={value === opt}
-                onChange={(e) => onChange(field, e.target.value)}
-                className="mr-2"
-              />
-              <label>{opt}</label>
-            </div>
-          ))}
+          {options.map((opt, idx) => {
+            const checked = selectedValues?.includes(opt);
+            return (
+              <div key={idx} className="flex items-center">
+                {/* ✅ Fix: stop dropdown closing when clicked */}
+                <input
+                  type="checkbox"
+                  name={field}
+                  value={opt}
+                  checked={checked}
+                  onChange={() => onToggle(field, opt)} // Only toggle selection
+                  className="mr-2"
+                />
+                <label>{opt}</label>
+              </div>
+            );
+          })}
           <button
+            type="button"
             className="text-sm text-blue-600 mt-1"
-            onClick={() => onChange(field, "")}
+            onClick={() => onToggle(field, null, true)} // Clear all
           >
             Clear
           </button>
@@ -86,26 +102,20 @@ const DropdownFilter = ({ label, field, options, value, onChange }) => {
 };
 
 const InternshipPage = () => {
-  // Accumulated jobs fetched from server (we append server pages)
   const [internships, setInternships] = useState([]);
   const [loading, setLoading] = useState(true);
-
-  // UI pagination (exactly 20 per page)
   const [uiPage, setUiPage] = useState(1);
-
-  // Server pagination (when UI needs more data, we fetch next server page)
   const [serverPage, setServerPage] = useState(1);
   const [serverHasMore, setServerHasMore] = useState(true);
 
-  // Filters (single-select dropdowns here)
+  // Filters now store **arrays** for multi-select
   const [filters, setFilters] = useState({
-    location: "",
-    skills: "",
-    duration: "",
-    experience: "",
+    location: [],
+    skills: [],
+    duration: [],
+    experience: [],
   });
 
-  // Applications & apply flow
   const [appliedJobIds, setAppliedJobIds] = useState([]);
   const [expandedJob, setExpandedJob] = useState(null);
   const [proposalText, setProposalText] = useState("");
@@ -116,7 +126,6 @@ const InternshipPage = () => {
   const token = localStorage.getItem("token");
   const navigate = useNavigate();
 
-  // -------- Fetch applications once (on mount / token change) --------
   useEffect(() => {
     const fetchApplications = async () => {
       try {
@@ -140,7 +149,6 @@ const InternshipPage = () => {
     fetchApplications();
   }, [token]);
 
-  // -------- Build server params from filters --------
   const buildParams = useCallback(
     (page) => {
       const params = {
@@ -148,16 +156,16 @@ const InternshipPage = () => {
         limit: ITEMS_PER_PAGE,
         jobType: "Internship",
       };
-      if (filters.location) params.location = filters.location;
-      if (filters.skills) params.skills = filters.skills;
-      if (filters.duration) params.duration = filters.duration;
-      if (filters.experience) params.experience = filters.experience;
+      if (filters.location.length) params.location = filters.location.join(",");
+      if (filters.skills.length) params.skills = filters.skills.join(",");
+      if (filters.duration.length) params.duration = filters.duration.join(",");
+      if (filters.experience.length)
+        params.experience = filters.experience.join(",");
       return params;
     },
     [filters]
   );
 
-  // -------- Fetch a page from the server and append --------
   const fetchServerPage = useCallback(
     async (pageToFetch) => {
       setLoading(true);
@@ -171,7 +179,6 @@ const InternshipPage = () => {
           ? res.data
           : res.data?.jobs || [];
 
-        // Normalize location to "Remote" if it's not in the list
         incoming = incoming.map((job) => ({
           ...job,
           location: INDIAN_STATES.includes(job.location)
@@ -196,7 +203,6 @@ const InternshipPage = () => {
     [buildParams]
   );
 
-  // -------- Initial load & when filters change: reset everything --------
   useEffect(() => {
     const resetAndFetch = async () => {
       setInternships([]);
@@ -208,7 +214,6 @@ const InternshipPage = () => {
     resetAndFetch();
   }, [filters, fetchServerPage]);
 
-  // -------- Derived filter options from currently loaded internships --------
   const skillOptions = useMemo(
     () => [
       ...new Set(
@@ -228,24 +233,24 @@ const InternshipPage = () => {
     [internships]
   );
 
-  // -------- Client-side filtered list (in case backend didn't filter some fields) --------
   const clientFiltered = useMemo(() => {
     return internships.filter((job) => {
-      const locOk = !filters.location || job.location === filters.location;
-      const durOk = !filters.duration || job.duration === filters.duration;
+      const locOk =
+        !filters.location.length || filters.location.includes(job.location);
+      const durOk =
+        !filters.duration.length || filters.duration.includes(job.duration);
       const expOk =
-        !filters.experience || job.experience === filters.experience;
+        !filters.experience.length ||
+        filters.experience.includes(job.experience);
       const skillOk =
-        !filters.skills ||
+        !filters.skills.length ||
         (Array.isArray(job.skillsRequired) &&
-          job.skillsRequired.includes(filters.skills));
-      // Ensure Internship only (defensive)
+          job.skillsRequired.some((s) => filters.skills.includes(s)));
       const typeOk = job.jobType === "Internship";
       return locOk && durOk && expOk && skillOk && typeOk;
     });
   }, [internships, filters]);
 
-  // -------- UI pagination over clientFiltered --------
   const totalPages = Math.max(
     1,
     Math.ceil(clientFiltered.length / ITEMS_PER_PAGE)
@@ -254,15 +259,21 @@ const InternshipPage = () => {
   const end = start + ITEMS_PER_PAGE;
   const pagedInternships = clientFiltered.slice(start, end);
 
-  // Keep uiPage in range
   useEffect(() => {
     if (uiPage > totalPages) setUiPage(totalPages);
     if (uiPage < 1) setUiPage(1);
   }, [uiPage, totalPages]);
 
-  // -------- Handlers --------
-  const handleFilterChange = (field, value) => {
-    setFilters((prev) => ({ ...prev, [field]: value }));
+  const handleFilterToggle = (field, value, clear = false) => {
+    setFilters((prev) => {
+      const current = prev[field] || [];
+      if (clear) return { ...prev, [field]: [] };
+      if (current.includes(value)) {
+        return { ...prev, [field]: current.filter((v) => v !== value) };
+      } else {
+        return { ...prev, [field]: [...current, value] };
+      }
+    });
   };
 
   const handleApplyClick = (job) => {
@@ -319,19 +330,16 @@ const InternshipPage = () => {
   };
 
   const handleNext = async () => {
-    // If next UI page exists locally, just page forward
     if (uiPage < totalPages) {
       setUiPage((p) => p + 1);
       window.scrollTo({ top: 0, behavior: "smooth" });
       return;
     }
 
-    // Otherwise, try to fetch another server page if available
     if (serverHasMore && !loading) {
       const nextServer = serverPage + 1;
       await fetchServerPage(nextServer);
       setServerPage(nextServer);
-      // after fetch, if new items added, advance one UI page
       setTimeout(() => {
         const newTotal = Math.max(
           1,
@@ -353,7 +361,6 @@ const InternshipPage = () => {
     <div className="min-h-screen bg-gradient-to-br from-indigo-100 via-white to-purple-100 mt-15">
       <ToastContainer position="top-center" autoClose={3000} />
 
-      {/* Mobile filter button */}
       <div className="lg:hidden px-4 mb-4">
         <button
           onClick={() => setMobileFilterOpen(true)}
@@ -364,40 +371,38 @@ const InternshipPage = () => {
       </div>
 
       <div className="flex">
-        {/* Desktop filter sidebar */}
         <div className="hidden lg:block lg:w-1/4 xl:w-1/5 sticky top-0 h-screen bg-white p-4 shadow-lg border-r overflow-y-auto">
           <h2 className="text-xl font-semibold mb-4">Filters</h2>
-          <DropdownFilter
+          <CheckboxFilter
             label="Location"
             field="location"
             options={INDIAN_STATES}
-            value={filters.location}
-            onChange={handleFilterChange}
+            selectedValues={filters.location}
+            onToggle={handleFilterToggle}
           />
-          <DropdownFilter
+          <CheckboxFilter
             label="Skills"
             field="skills"
             options={skillOptions}
-            value={filters.skills}
-            onChange={handleFilterChange}
+            selectedValues={filters.skills}
+            onToggle={handleFilterToggle}
           />
-          <DropdownFilter
+          <CheckboxFilter
             label="Duration"
             field="duration"
             options={durationOptions}
-            value={filters.duration}
-            onChange={handleFilterChange}
+            selectedValues={filters.duration}
+            onToggle={handleFilterToggle}
           />
-          <DropdownFilter
+          <CheckboxFilter
             label="Experience"
             field="experience"
             options={experienceOptions}
-            value={filters.experience}
-            onChange={handleFilterChange}
+            selectedValues={filters.experience}
+            onToggle={handleFilterToggle}
           />
         </div>
 
-        {/* Internships list */}
         <div className="flex-1 p-4">
           <div className="grid gap-6 grid-cols-1 sm:grid-cols-2 lg:grid-cols-3">
             {loading && internships.length === 0 ? (
@@ -480,7 +485,6 @@ const InternshipPage = () => {
             )}
           </div>
 
-          {/* UI Pagination (exactly 20 items per page) */}
           <div className="flex justify-center items-center gap-4 mt-6">
             <button
               onClick={handlePrev}
@@ -509,7 +513,6 @@ const InternshipPage = () => {
         </div>
       </div>
 
-      {/* Mobile filter overlay */}
       {mobileFilterOpen && (
         <div className="fixed inset-0 bg-black bg-opacity-40 z-50 flex">
           <div className="bg-white w-3/4 p-4 overflow-y-auto">
@@ -522,33 +525,33 @@ const InternshipPage = () => {
                 Close
               </button>
             </div>
-            <DropdownFilter
+            <CheckboxFilter
               label="Location"
               field="location"
               options={INDIAN_STATES}
-              value={filters.location}
-              onChange={handleFilterChange}
+              selectedValues={filters.location}
+              onToggle={handleFilterToggle}
             />
-            <DropdownFilter
+            <CheckboxFilter
               label="Skills"
               field="skills"
               options={skillOptions}
-              value={filters.skills}
-              onChange={handleFilterChange}
+              selectedValues={filters.skills}
+              onToggle={handleFilterToggle}
             />
-            <DropdownFilter
+            <CheckboxFilter
               label="Duration"
               field="duration"
               options={durationOptions}
-              value={filters.duration}
-              onChange={handleFilterChange}
+              selectedValues={filters.duration}
+              onToggle={handleFilterToggle}
             />
-            <DropdownFilter
+            <CheckboxFilter
               label="Experience"
               field="experience"
               options={experienceOptions}
-              value={filters.experience}
-              onChange={handleFilterChange}
+              selectedValues={filters.experience}
+              onToggle={handleFilterToggle}
             />
           </div>
           <div className="flex-1" onClick={() => setMobileFilterOpen(false)} />
