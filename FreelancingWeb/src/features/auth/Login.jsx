@@ -117,7 +117,7 @@ const LoginPage = () => {
             className="bg-white shadow-lg rounded-lg p-8 w-full max-w-md"
           >
             <h2 className="text-2xl font-bold mb-4 text-gray-700 text-center">
-              {isLogin ? "Login" : "Client Registration"}
+              {isLogin ? "Client Login" : "Client Registration"}
             </h2>
 
             <form
