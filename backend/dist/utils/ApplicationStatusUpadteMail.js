@@ -31,7 +31,7 @@ const sendApplicationStatusMail = (email, jobTitle, jobId, applicationId, status
       <p><strong>Application ID:</strong> ${applicationId}</p>
     </div>
 
-    <a href="https://yourapp.com/dashboard" 
+    <a href="https://hireonworkbridge.vercel.app/myjobs" 
        style="display:inline-block;margin-top:20px;background-color:#2563eb;color:#fff;padding:10px 20px;border-radius:5px;text-decoration:none;">
       View Your Application
     </a>

@@ -12,7 +12,7 @@ var __importDefault = (this && this.__importDefault) || function (mod) {
     return (mod && mod.__esModule) ? mod : { "default": mod };
 };
 Object.defineProperty(exports, "__esModule", { value: true });
-exports.getJobsByFreelancer = exports.getJobById = exports.deleteJob = exports.updateJob = exports.getMyJobs = exports.getAllJobs = exports.createJob = void 0;
+exports.createJobsBulk = exports.getJobsByFreelancer = exports.getJobById = exports.deleteJob = exports.updateJob = exports.getMyJobs = exports.getAllJobs = exports.createJob = void 0;
 const Job_1 = __importDefault(require("../models/Job"));
 // 🚀 Create a new job (freelancer only)
 const createJob = (req, res) => __awaiter(void 0, void 0, void 0, function* () {
@@ -246,3 +246,41 @@ const getJobsByFreelancer = (req, res) => __awaiter(void 0, void 0, void 0, func
     }
 });
 exports.getJobsByFreelancer = getJobsByFreelancer;
+const createJobsBulk = (req, res) => __awaiter(void 0, void 0, void 0, function* () {
+    try {
+        const { id: freelancerId, role } = req.user;
+        if (role !== "freelancer") {
+            return res.status(403).json({ error: "Only freelancers can post jobs" });
+        }
+        const jobs = req.body; // expecting an array of jobs
+        if (!Array.isArray(jobs) || jobs.length === 0) {
+            return res.status(400).json({ error: "No jobs provided" });
+        }
+        // Validate each job
+        const invalidJobs = jobs.filter(job => !job.title ||
+            !job.description ||
+            !job.duration ||
+            !job.skillsRequired ||
+            !job.location ||
+            !job.jobMode ||
+            !job.jobType ||
+            !job.companyName ||
+            (job.jobType === "Job" && !job.ctc) ||
+            (job.jobType === "Internship" && !job.stipend));
+        if (invalidJobs.length > 0) {
+            return res.status(400).json({ error: "Some jobs are missing required fields" });
+        }
+        // Attach freelancerId and budget automatically
+        const jobsToInsert = jobs.map(job => (Object.assign(Object.assign({}, job), { postedBy: freelancerId, budget: job.jobType === "Job" ? job.ctc : job.stipend, stipend: job.jobType === "Internship" ? job.stipend : undefined, ctc: job.jobType === "Job" ? job.ctc : undefined })));
+        const insertedJobs = yield Job_1.default.insertMany(jobsToInsert);
+        res.status(201).json({
+            message: `${insertedJobs.length} jobs posted successfully`,
+            data: insertedJobs,
+        });
+    }
+    catch (error) {
+        console.error("Bulk Create Jobs Error:", error);
+        res.status(500).json({ error: "Failed to create jobs", details: error.message });
+    }
+});
+exports.createJobsBulk = createJobsBulk;

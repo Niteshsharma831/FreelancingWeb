@@ -13,4 +13,5 @@ router.post("/create", auth_1.authMiddleware, jobController_1.createJob);
 router.get("/my-jobs", auth_1.authMiddleware, jobController_1.getMyJobs); // freelancer get thier posted Jobs
 router.put("/update/:id", auth_1.authMiddleware, jobController_1.updateJob);
 router.delete("/delete/:jobId", auth_1.authMiddleware, jobController_1.deleteJob);
+router.post("/bulk", auth_1.authMiddleware, jobController_1.createJobsBulk);
 exports.default = router;

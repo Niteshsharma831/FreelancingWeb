@@ -12,101 +12,130 @@ var __importDefault = (this && this.__importDefault) || function (mod) {
     return (mod && mod.__esModule) ? mod : { "default": mod };
 };
 Object.defineProperty(exports, "__esModule", { value: true });
-exports.sendOtpMail = void 0;
+exports.sendWelcomeEmail = exports.sendOtpMail = exports.testEmailConfig = void 0;
 const nodemailer_1 = __importDefault(require("nodemailer"));
-const transporter = nodemailer_1.default.createTransport({
-    service: "Gmail",
-    auth: {
-        user: process.env.MAIL_USER,
-        pass: process.env.MAIL_PASS,
-    },
+const dotenv_1 = __importDefault(require("dotenv"));
+dotenv_1.default.config();
+// Create transporter with better error handling
+const createTransporter = () => {
+    return nodemailer_1.default.createTransport({
+        service: 'gmail',
+        auth: {
+            user: process.env.EMAIL_USER,
+            pass: process.env.EMAIL_PASS
+        }
+    });
+};
+// Test email configuration
+const testEmailConfig = () => __awaiter(void 0, void 0, void 0, function* () {
+    try {
+        const transporter = createTransporter();
+        yield transporter.verify();
+        console.log("✅ Email server is ready to send messages");
+        return true;
+    }
+    catch (error) {
+        console.error("❌ Email configuration error:", error);
+        return false;
+    }
 });
+exports.testEmailConfig = testEmailConfig;
+// Send OTP email
 const sendOtpMail = (email, otp) => __awaiter(void 0, void 0, void 0, function* () {
-    const mailOptions = {
-        from: `"WorkBridge" <${process.env.MAIL_USER}>`,
-        to: email,
-        subject: "Your OTP Code - WorkBridge",
-        html: `
-    <div style="font-family: 'Segoe UI', sans-serif; background-color: #f3f4f6; padding: 0; margin: 0;">
-      <table align="center" width="100%" cellpadding="0" cellspacing="0" style="max-width: 600px; background-color: #ffffff; border-radius: 10px; overflow: hidden; box-shadow: 0 5px 15px rgba(0,0,0,0.1);">
-        
-        <!-- Header -->
-        <tr>
-          <td style="background-color: #1e3a8a; text-align: center; padding: 30px;">
-            <h1 style="color: #ffffff; font-size: 28px; margin: 0;">Welcome to WorkBridge</h1>
-            <p style="color: #cbd5e1; font-size: 14px; margin-top: 5px;">Empowering Freelancers & Job Seekers</p>
-          </td>
-        </tr>
-
-        <!-- OTP Section -->
-        <tr>
-          <td style="padding: 30px; text-align: center;">
-            <h2 style="color: #111827; font-size: 22px;">Your One-Time Password (OTP)</h2>
-            <p style="font-size: 16px; color: #4b5563;">Use the code below to verify your email address:</p>
-            <div style="display: inline-block; background-color: #eef2ff; padding: 20px 40px; border-radius: 12px; margin: 20px 0;">
-              <span style="font-size: 32px; color: #1d4ed8; font-weight: bold;">${otp}</span>
+    try {
+        // Check if email credentials are available
+        if (!process.env.EMAIL_USER || !process.env.EMAIL_PASS) {
+            console.warn("⚠️ Email credentials not configured. Skipping email send.");
+            // In development, log OTP to console
+            if (process.env.NODE_ENV === 'development') {
+                console.log(`📧 OTP for ${email}: ${otp}`);
+            }
+            return true; // Return true to continue flow in development
+        }
+        const transporter = createTransporter();
+        const mailOptions = {
+            from: `"Freelancing Platform" <${process.env.EMAIL_USER}>`,
+            to: email,
+            subject: "Your OTP Code - Freelancing Platform",
+            html: `
+        <div style="font-family: Arial, sans-serif; max-width: 600px; margin: 0 auto;">
+          <div style="background: linear-gradient(135deg, #667eea 0%, #764ba2 100%); padding: 30px; text-align: center;">
+            <h1 style="color: white; margin: 0;">Freelancing Platform</h1>
+          </div>
+          <div style="padding: 30px; background: #f9f9f9;">
+            <h2 style="color: #333;">Your OTP Code</h2>
+            <p style="color: #666; font-size: 16px;">Use the following OTP to complete your action:</p>
+            <div style="background: white; padding: 20px; border-radius: 10px; text-align: center; margin: 20px 0;">
+              <h1 style="font-size: 48px; letter-spacing: 10px; color: #667eea; margin: 0;">${otp}</h1>
             </div>
-            <p style="color: #6b7280; font-size: 14px;">This OTP is valid for 10 minutes. Do not share it with anyone.</p>
-          </td>
-        </tr>
-
-        <!-- Profile Tips -->
-        <tr>
-          <td style="padding: 20px 30px; background-color: #fef9c3; text-align: left;">
-            <h3 style="color: #92400e;">💡 Tip: Complete Your Profile</h3>
-            <ul style="padding-left: 20px; font-size: 14px; color: #78350f;">
-              <li>Add your skills & experience</li>
-              <li>Upload a professional photo</li>
-              <li>Get discovered by top clients</li>
-            </ul>
-          </td>
-        </tr>
-
-        <!-- Why WorkBridge -->
-        <tr>
-          <td style="background-color: #f9fafb; padding: 30px; text-align: center;">
-            <h3 style="color: #1e3a8a;">Why Choose WorkBridge?</h3>
-            <ul style="list-style: none; padding: 0; color: #374151; font-size: 14px; line-height: 1.6; margin: 15px 0;">
-              <li>✅ Verified Freelance Projects</li>
-              <li>✅ Build Your Personal Brand</li>
-              <li>✅ Connect with Clients Globally</li>
-              <li>✅ Resume Builder + Skill Match</li>
-            </ul>
-            <a href="https://workbridge.in" style="display: inline-block; background-color: #1d4ed8; color: #ffffff; padding: 12px 24px; border-radius: 6px; font-weight: 600; text-decoration: none; margin-top: 10px;">
-              Explore WorkBridge
-            </a>
-          </td>
-        </tr>
-
-        <!-- Banner Image -->
-        <tr>
-          <td style="text-align: center;">
-            <img src="https://i.postimg.cc/zvZrPhkr/workbridge-banner.png" alt="WorkBridge Banner" style="width: 100%; max-height: 200px; object-fit: cover;">
-          </td>
-        </tr>
-
-        <!-- Support & Footer -->
-        <tr>
-          <td style="padding: 20px 30px; background-color: #f3f4f6; font-size: 13px; color: #4b5563;">
-            <p style="margin: 0;"><strong>Need help?</strong> Visit our <a href="https://workbridge.in/support" style="color: #3b82f6; text-decoration: none;">Help Center</a> or contact us at <a href="mailto:support@workbridge.in" style="color: #3b82f6;">support@workbridge.in</a></p>
-            <p style="margin-top: 10px;">🔐 <em>We’ll never ask for your OTP or password over email.</em></p>
-          </td>
-        </tr>
-
-        <!-- Final Footer -->
-        <tr>
-          <td style="background-color: #1e3a8a; padding: 20px; color: #cbd5e1; text-align: center; font-size: 13px;">
-            <p style="margin: 5px 0;"><strong>Nitesh Kumar Sharma</strong></p>
-            <p style="margin: 0;">Founder & CEO, WorkBridge</p>
-            <p style="margin: 0;"><a href="mailto:Niteshkumarsharma831@gmail.com" style="color: #93c5fd; text-decoration: none;">Niteshkumarsharma831@gmail.com</a></p>
-            <p style="margin-top: 10px; font-size: 12px;">&copy; ${new Date().getFullYear()} WorkBridge. All rights reserved.</p>
-          </td>
-        </tr>
-
-      </table>
-    </div>
-    `,
-    };
-    yield transporter.sendMail(mailOptions);
+            <p style="color: #999; font-size: 14px;">
+              This OTP is valid for 5 minutes. Please do not share this code with anyone.
+            </p>
+            <hr style="border: none; border-top: 1px solid #eee; margin: 30px 0;">
+            <p style="color: #999; font-size: 12px;">
+              If you didn't request this OTP, please ignore this email.
+            </p>
+          </div>
+          <div style="background: #f5f5f5; padding: 20px; text-align: center; color: #999; font-size: 12px;">
+            <p>© ${new Date().getFullYear()} Freelancing Platform. All rights reserved.</p>
+          </div>
+        </div>
+      `
+        };
+        const info = yield transporter.sendMail(mailOptions);
+        console.log(`✅ OTP email sent to ${email}: ${info.messageId}`);
+        return true;
+    }
+    catch (error) {
+        console.error("❌ Failed to send OTP email:", error);
+        // In development, log OTP to console as fallback
+        if (process.env.NODE_ENV === 'development') {
+            console.log(`📧 [FALLBACK] OTP for ${email}: ${otp}`);
+            return true;
+        }
+        throw error;
+    }
 });
 exports.sendOtpMail = sendOtpMail;
+// Send welcome email
+const sendWelcomeEmail = (email, name) => __awaiter(void 0, void 0, void 0, function* () {
+    try {
+        if (!process.env.EMAIL_USER || !process.env.EMAIL_PASS) {
+            console.warn("⚠️ Email credentials not configured. Skipping welcome email.");
+            return;
+        }
+        const transporter = createTransporter();
+        const mailOptions = {
+            from: `"Freelancing Platform" <${process.env.EMAIL_USER}>`,
+            to: email,
+            subject: "Welcome to Freelancing Platform!",
+            html: `
+        <div style="font-family: Arial, sans-serif; max-width: 600px; margin: 0 auto;">
+          <div style="background: linear-gradient(135deg, #667eea 0%, #764ba2 100%); padding: 30px; text-align: center;">
+            <h1 style="color: white; margin: 0;">Welcome to Freelancing Platform!</h1>
+          </div>
+          <div style="padding: 30px; background: #f9f9f9;">
+            <h2 style="color: #333;">Hello ${name}!</h2>
+            <p style="color: #666; font-size: 16px;">
+              Thank you for joining our freelancing platform. We're excited to have you on board!
+            </p>
+            <p style="color: #666; font-size: 16px;">
+              Get started by completing your profile and exploring available jobs.
+            </p>
+            <a href="${process.env.CLIENT_URL || 'http://localhost:3000'}/dashboard" 
+               style="display: inline-block; background: #667eea; color: white; padding: 12px 30px; 
+                      text-decoration: none; border-radius: 5px; margin: 20px 0; font-weight: bold;">
+              Go to Dashboard
+            </a>
+          </div>
+        </div>
+      `
+        };
+        yield transporter.sendMail(mailOptions);
+        console.log(`✅ Welcome email sent to ${email}`);
+    }
+    catch (error) {
+        console.error("❌ Failed to send welcome email:", error);
+    }
+});
+exports.sendWelcomeEmail = sendWelcomeEmail;

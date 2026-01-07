@@ -1,99 +1,138 @@
 import nodemailer from "nodemailer";
 
-const transporter = nodemailer.createTransport({
-  service: "Gmail",
-  auth: {
-    user: process.env.MAIL_USER,
-    pass: process.env.MAIL_PASS,
-  },
-});
+console.log('📧 Email Service Loading...');
+console.log(`🔍 Current EMAIL_USER: ${process.env.EMAIL_USER || '❌ NOT SET'}`);
+console.log(`🔍 Current EMAIL_PASS: ${process.env.EMAIL_PASS ? '✅ SET (hidden)' : '❌ NOT SET'}`);
 
-export const sendOtpMail = async (email: string, otp: string) => {
-  const mailOptions = {
-    from: `"WorkBridge" <${process.env.MAIL_USER}>`,
-    to: email,
-    subject: "Your OTP Code - WorkBridge",
-    html: `
-    <div style="font-family: 'Segoe UI', sans-serif; background-color: #f3f4f6; padding: 0; margin: 0;">
-      <table align="center" width="100%" cellpadding="0" cellspacing="0" style="max-width: 600px; background-color: #ffffff; border-radius: 10px; overflow: hidden; box-shadow: 0 5px 15px rgba(0,0,0,0.1);">
-        
-        <!-- Header -->
-        <tr>
-          <td style="background-color: #1e3a8a; text-align: center; padding: 30px;">
-            <h1 style="color: #ffffff; font-size: 28px; margin: 0;">Welcome to WorkBridge</h1>
-            <p style="color: #cbd5e1; font-size: 14px; margin-top: 5px;">Empowering Freelancers & Job Seekers</p>
-          </td>
-        </tr>
-
-        <!-- OTP Section -->
-        <tr>
-          <td style="padding: 30px; text-align: center;">
-            <h2 style="color: #111827; font-size: 22px;">Your One-Time Password (OTP)</h2>
-            <p style="font-size: 16px; color: #4b5563;">Use the code below to verify your email address:</p>
-            <div style="display: inline-block; background-color: #eef2ff; padding: 20px 40px; border-radius: 12px; margin: 20px 0;">
-              <span style="font-size: 32px; color: #1d4ed8; font-weight: bold;">${otp}</span>
-            </div>
-            <p style="color: #6b7280; font-size: 14px;">This OTP is valid for 10 minutes. Do not share it with anyone.</p>
-          </td>
-        </tr>
-
-        <!-- Profile Tips -->
-        <tr>
-          <td style="padding: 20px 30px; background-color: #fef9c3; text-align: left;">
-            <h3 style="color: #92400e;">💡 Tip: Complete Your Profile</h3>
-            <ul style="padding-left: 20px; font-size: 14px; color: #78350f;">
-              <li>Add your skills & experience</li>
-              <li>Upload a professional photo</li>
-              <li>Get discovered by top clients</li>
-            </ul>
-          </td>
-        </tr>
-
-        <!-- Why WorkBridge -->
-        <tr>
-          <td style="background-color: #f9fafb; padding: 30px; text-align: center;">
-            <h3 style="color: #1e3a8a;">Why Choose WorkBridge?</h3>
-            <ul style="list-style: none; padding: 0; color: #374151; font-size: 14px; line-height: 1.6; margin: 15px 0;">
-              <li>✅ Verified Freelance Projects</li>
-              <li>✅ Build Your Personal Brand</li>
-              <li>✅ Connect with Clients Globally</li>
-              <li>✅ Resume Builder + Skill Match</li>
-            </ul>
-            <a href="https://hireonworkbridge.vercel.app/" style="display: inline-block; background-color: #1d4ed8; color: #ffffff; padding: 12px 24px; border-radius: 6px; font-weight: 600; text-decoration: none; margin-top: 10px;">
-              Explore WorkBridge
-            </a>
-          </td>
-        </tr>
-
-        <!-- Banner Image -->
-        <tr>
-          <td style="text-align: center;">
-            <img src="https://i.postimg.cc/zvZrPhkr/workbridge-banner.png" alt="WorkBridge Banner" style="width: 100%; max-height: 200px; object-fit: cover;">
-          </td>
-        </tr>
-
-        <!-- Support & Footer -->
-        <tr>
-          <td style="padding: 20px 30px; background-color: #f3f4f6; font-size: 13px; color: #4b5563;">
-            <p style="margin: 0;"><strong>Need help?</strong> Visit our <a href="https://workbridge.in/support" style="color: #3b82f6; text-decoration: none;">Help Center</a> or contact us at <a href="mailto:support@workbridge.in" style="color: #3b82f6;">support@workbridge.in</a></p>
-            <p style="margin-top: 10px;">🔐 <em>We’ll never ask for your OTP or password over email.</em></p>
-          </td>
-        </tr>
-
-        <!-- Final Footer -->
-        <tr>
-          <td style="background-color: #1e3a8a; padding: 20px; color: #cbd5e1; text-align: center; font-size: 13px;">
-            <p style="margin: 5px 0;"><strong>Nitesh Kumar Sharma</strong></p>
-            <p style="margin: 0;">Founder & CEO, WorkBridge</p>
-            <p style="margin: 0;"><a href="mailto:Niteshkumarsharma831@gmail.com" style="color: #93c5fd; text-decoration: none;">Niteshkumarsharma831@gmail.com</a></p>
-            <p style="margin-top: 10px; font-size: 12px;">&copy; ${new Date().getFullYear()} WorkBridge. All rights reserved.</p>
-          </td>
-        </tr>
-
-      </table>
-    </div>
-    `,
-  };
-
-  await transporter.sendMail(mailOptions);
+// Function to check if email is configured
+export const isEmailConfigured = (): boolean => {
+  const user = process.env.EMAIL_USER;
+  const pass = process.env.EMAIL_PASS;
+  const isConfigured = !!(user && pass);
+  
+  console.log(`🔍 Email configuration check:`);
+  console.log(`   EMAIL_USER: ${user || 'empty'}`);
+  console.log(`   EMAIL_PASS: ${pass ? '***' + pass.slice(-4) : 'empty'}`);
+  console.log(`   Result: ${isConfigured ? '✅ CONFIGURED' : '❌ NOT CONFIGURED'}`);
+  
+  return isConfigured;
 };
+
+// Create transporter
+const createTransporter = () => {
+  const user = process.env.EMAIL_USER;
+  const pass = process.env.EMAIL_PASS;
+  
+  if (!user || !pass) {
+    console.warn('❌ Cannot create transporter: Missing credentials');
+    return null;
+  }
+
+  try {
+    const transporter = nodemailer.createTransport({
+      service: 'gmail',
+      auth: {
+        user: user.trim(),
+        pass: pass.trim()
+      }
+    });
+    console.log('✅ Transporter created successfully');
+    return transporter;
+  } catch (error) {
+    console.error('❌ Error creating transporter:', error);
+    return null;
+  }
+};
+
+// Send OTP email
+export const sendOtpMail = async (email: string, otp: string): Promise<boolean> => {
+  console.log(`\n📧 SEND OTP CALLED for: ${email}`);
+  
+  // Check configuration
+  if (!isEmailConfigured()) {
+    console.warn("⚠️ Email credentials not configured. Skipping email send.");
+    console.log(`📧 OTP for ${email}: ${otp}`);
+    return false;
+  }
+
+  const transporter = createTransporter();
+  
+  if (!transporter) {
+    console.error("❌ Failed to create email transporter");
+    console.log(`📧 [FALLBACK] OTP for ${email}: ${otp}`);
+    return false;
+  }
+
+  try {
+    const mailOptions = {
+      from: `"Freelancing Platform" <${process.env.EMAIL_USER}>`,
+      to: email,
+      subject: "Your OTP Code - Freelancing Platform",
+      html: `
+        <div style="font-family: Arial, sans-serif; max-width: 600px; margin: 0 auto;">
+          <div style="background: linear-gradient(135deg, #667eea 0%, #764ba2 100%); padding: 30px; text-align: center;">
+            <h1 style="color: white; margin: 0;">Freelancing Platform</h1>
+          </div>
+          <div style="padding: 30px; background: #f9f9f9;">
+            <h2 style="color: #333;">Your OTP Code</h2>
+            <p style="color: #666; font-size: 16px;">Use the following OTP to complete your action:</p>
+            <div style="background: white; padding: 20px; border-radius: 10px; text-align: center; margin: 20px 0;">
+              <h1 style="font-size: 48px; letter-spacing: 10px; color: #667eea; margin: 0;">${otp}</h1>
+            </div>
+            <p style="color: #999; font-size: 14px;">
+              This OTP is valid for 5 minutes. Please do not share this code with anyone.
+            </p>
+          </div>
+        </div>
+      `,
+      text: `Your OTP Code: ${otp}. This OTP is valid for 5 minutes.`
+    };
+
+    console.log(`📧 Attempting to send email via: ${process.env.EMAIL_USER}`);
+    const info = await transporter.sendMail(mailOptions);
+    
+    console.log(`✅ OTP email sent successfully!`);
+    console.log(`📧 Message ID: ${info.messageId}`);
+    
+    return true;
+  } catch (error: any) {
+    console.error("❌ Failed to send OTP email:", error.message);
+    console.log(`📧 [FALLBACK] OTP for ${email}: ${otp}`);
+    
+    if (error.code === 'EAUTH') {
+      console.error('\n🔧 GMAIL AUTH ERROR - Please verify:');
+      console.error('1. Go to: https://myaccount.google.com/apppasswords');
+      console.error('2. Generate 16-character App Password (select "Mail" and "Other")');
+      console.error('3. Update .env file with the new password');
+    }
+    
+    return false;
+  }
+};
+
+// Test email configuration
+export const testEmailConfig = async () => {
+  console.log('\n🔧 Testing Email Configuration...');
+  
+  if (!isEmailConfigured()) {
+    return false;
+  }
+
+  const transporter = createTransporter();
+  
+  if (!transporter) {
+    return false;
+  }
+
+  try {
+    await transporter.verify();
+    console.log("✅ Email server is ready to send messages");
+    return true;
+  } catch (error: any) {
+    console.error("❌ Email configuration test failed:", error.message);
+    return false;
+  }
+};
+
+// Run test on module load
+testEmailConfig();

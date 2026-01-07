@@ -1,10 +1,28 @@
-// utils/otp.ts
-export const generateOtp = (): string => {
-  return Math.floor(100000 + Math.random() * 900000).toString(); // 6-digit OTP
+export const generateOtp = (length: number = 6): string => {
+  const digits = '0123456789';
+  let otp = '';
+  
+  for (let i = 0; i < length; i++) {
+    otp += digits[Math.floor(Math.random() * digits.length)];
+  }
+  
+  return otp;
 };
 
-export const otpExpiry = (): Date => {
-  const expires = new Date();
-  expires.setMinutes(expires.getMinutes() + 10);
-  return expires;
+export const otpExpiry = (minutes: number = 5): Date => {
+  const now = new Date();
+  now.setMinutes(now.getMinutes() + minutes);
+  return now;
+};
+
+// Optional: Generate alphanumeric OTP
+export const generateAlphanumericOtp = (length: number = 6): string => {
+  const chars = 'ABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789';
+  let otp = '';
+  
+  for (let i = 0; i < length; i++) {
+    otp += chars[Math.floor(Math.random() * chars.length)];
+  }
+  
+  return otp;
 };
