@@ -3,14 +3,14 @@ import "express";
 
 declare global {
   namespace Express {
-    interface UserPayload {
+    interface User {
       id: string;
-      role: "client" | "freelancer" | "admin";
+      role: string;
       email: string;
     }
 
     interface Request {
-      user?: UserPayload;
+      user?: User;
     }
   }
 }
