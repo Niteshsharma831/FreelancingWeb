@@ -331,7 +331,7 @@
 // src/controllers/application.ts
 import { Request, Response } from "express";
 import mongoose from "mongoose";
-import JobApplication from "../models/Application";
+import Application from "../models/Application";
 import Job from "../models/Job";
 import Client from "../models/clientModel";
 import Freelancer from "../models/Freelancer";
@@ -345,30 +345,38 @@ interface AuthRequest extends Request {
   };
 }
 
-// 🆕 Create a new job application
+// 🆕 Create a new job application (Freelancer applies for a job)
 export const createApplication = async (
   req: AuthRequest,
   res: Response
 ): Promise<void> => {
   try {
-    const freelancerId = req.user?.id;
-    const { jobId, coverLetter, proposedRate, estimatedDays } = req.body;
+    const userId = req.user?.id;
+    const userRole = req.user?.role;
+    const { jobId, proposal } = req.body;
 
     // Validate required fields
-    if (!jobId || !coverLetter || !proposedRate || !estimatedDays) {
+    if (!jobId || !proposal) {
       res.status(400).json({
         success: false,
-        error:
-          "All fields are required: jobId, coverLetter, proposedRate, estimatedDays",
+        error: "Job ID and proposal are required",
       });
       return;
     }
 
     // Check if user is a freelancer
-    if (req.user?.role !== "freelancer") {
+    if (userRole !== "freelancer") {
       res.status(403).json({
         success: false,
         error: "Only freelancers can apply for jobs",
+      });
+      return;
+    }
+
+    if (!userId) {
+      res.status(401).json({
+        success: false,
+        error: "Unauthorized",
       });
       return;
     }
@@ -393,7 +401,7 @@ export const createApplication = async (
     }
 
     // Check if freelancer exists
-    const freelancer = await Freelancer.findById(freelancerId);
+    const freelancer = await Freelancer.findById(userId);
     if (!freelancer) {
       res.status(404).json({
         success: false,
@@ -403,9 +411,10 @@ export const createApplication = async (
     }
 
     // Check if freelancer has already applied
-    const existingApplication = await JobApplication.findOne({
+    const existingApplication = await Application.findOne({
       jobId,
-      freelancerId,
+      clientId: job.clientId,
+      "freelancer._id": userId,
     });
 
     if (existingApplication) {
@@ -417,15 +426,16 @@ export const createApplication = async (
     }
 
     // Create new application
-    const application = new JobApplication({
+    const application = new Application({
       jobId,
       clientId: job.clientId,
-      freelancerId,
-      freelancerName: freelancer.name,
-      freelancerEmail: freelancer.email,
-      coverLetter,
-      proposedRate: parseFloat(proposedRate),
-      estimatedDays: parseInt(estimatedDays),
+      proposal,
+      freelancer: {
+        _id: userId,
+        name: freelancer.name,
+        email: freelancer.email,
+        profile: freelancer.profile || {},
+      },
       status: "pending",
     });
 
@@ -469,7 +479,7 @@ export const createApplication = async (
   }
 };
 
-// 📋 Get all applications for a job (client view)
+// 📋 Get all applications for a specific job (Client view)
 export const getJobApplications = async (
   req: AuthRequest,
   res: Response
@@ -487,6 +497,14 @@ export const getJobApplications = async (
       return;
     }
 
+    if (!userId) {
+      res.status(401).json({
+        success: false,
+        error: "Unauthorized",
+      });
+      return;
+    }
+
     // Check if job exists
     const job = await Job.findById(jobId);
     if (!job) {
@@ -497,7 +515,8 @@ export const getJobApplications = async (
       return;
     }
 
-    // Check permissions
+    let applications;
+
     if (userRole === "client") {
       // Client can only see applications for their own jobs
       if (job.clientId.toString() !== userId) {
@@ -508,19 +527,16 @@ export const getJobApplications = async (
         });
         return;
       }
-    } else if (userRole === "freelancer") {
-      // Freelancer can only see their own applications
-      const applications = await JobApplication.find({
-        jobId,
-        freelancerId: userId,
-      }).populate("jobId", "title description budget duration");
 
-      res.status(200).json({
-        success: true,
-        count: applications.length,
-        data: { applications },
+      applications = await Application.find({ jobId, clientId: userId }).sort({
+        appliedAt: -1,
       });
-      return;
+    } else if (userRole === "freelancer") {
+      // Freelancer can only see their own applications for this job
+      applications = await Application.find({
+        jobId,
+        "freelancer._id": userId,
+      }).sort({ appliedAt: -1 });
     } else {
       res.status(403).json({
         success: false,
@@ -528,11 +544,6 @@ export const getJobApplications = async (
       });
       return;
     }
-
-    // Get all applications for this job (client view)
-    const applications = await JobApplication.find({ jobId })
-      .populate("freelancerId", "name email profile")
-      .sort({ createdAt: -1 });
 
     res.status(200).json({
       success: true,
@@ -564,10 +575,11 @@ export const getFreelancerApplications = async (
   res: Response
 ): Promise<void> => {
   try {
-    const freelancerId = req.user?.id;
+    const userId = req.user?.id;
+    const userRole = req.user?.role;
     const { status } = req.query;
 
-    if (!freelancerId) {
+    if (!userId) {
       res.status(401).json({
         success: false,
         error: "Unauthorized",
@@ -575,7 +587,7 @@ export const getFreelancerApplications = async (
       return;
     }
 
-    if (req.user?.role !== "freelancer") {
+    if (userRole !== "freelancer") {
       res.status(403).json({
         success: false,
         error: "Access denied. Only freelancers can view their applications",
@@ -584,19 +596,20 @@ export const getFreelancerApplications = async (
     }
 
     // Build query
-    const query: any = { freelancerId };
+    const query: any = { "freelancer._id": userId };
 
-    if (status && typeof status === "string") {
+    if (
+      status &&
+      typeof status === "string" &&
+      ["pending", "accepted", "rejected"].includes(status)
+    ) {
       query.status = status;
     }
 
-    const applications = await JobApplication.find(query)
-      .populate(
-        "jobId",
-        "title description budget duration category status clientId"
-      )
+    const applications = await Application.find(query)
+      .populate("jobId", "title description budget duration category status")
       .populate("clientId", "name email")
-      .sort({ createdAt: -1 });
+      .sort({ appliedAt: -1 });
 
     res.status(200).json({
       success: true,
@@ -631,12 +644,16 @@ export const getApplicationById = async (
       return;
     }
 
-    const application = await JobApplication.findById(id)
-      .populate(
-        "jobId",
-        "title description budget duration category status clientId"
-      )
-      .populate("freelancerId", "name email profile")
+    if (!userId) {
+      res.status(401).json({
+        success: false,
+        error: "Unauthorized",
+      });
+      return;
+    }
+
+    const application = await Application.findById(id)
+      .populate("jobId", "title description budget duration category status")
       .populate("clientId", "name email");
 
     if (!application) {
@@ -652,7 +669,7 @@ export const getApplicationById = async (
       userRole === "client" && application.clientId.toString() === userId;
     const isFreelancer =
       userRole === "freelancer" &&
-      application.freelancerId.toString() === userId;
+      application.freelancer._id.toString() === userId;
     const isAdmin = userRole === "admin";
 
     if (!isClient && !isFreelancer && !isAdmin) {
@@ -686,7 +703,7 @@ export const getApplicationById = async (
   }
 };
 
-// ✏️ Update application status (client only)
+// ✏️ Update application status (Client only)
 export const updateApplicationStatus = async (
   req: AuthRequest,
   res: Response
@@ -694,7 +711,8 @@ export const updateApplicationStatus = async (
   try {
     const { id } = req.params;
     const { status } = req.body;
-    const clientId = req.user?.id;
+    const userId = req.user?.id;
+    const userRole = req.user?.role;
 
     if (!id || !status) {
       res.status(400).json({
@@ -704,8 +722,16 @@ export const updateApplicationStatus = async (
       return;
     }
 
+    if (!userId) {
+      res.status(401).json({
+        success: false,
+        error: "Unauthorized",
+      });
+      return;
+    }
+
     // Check if user is a client
-    if (req.user?.role !== "client") {
+    if (userRole !== "client") {
       res.status(403).json({
         success: false,
         error: "Only clients can update application status",
@@ -713,13 +739,7 @@ export const updateApplicationStatus = async (
       return;
     }
 
-    const validStatuses = [
-      "pending",
-      "reviewed",
-      "accepted",
-      "rejected",
-      "cancelled",
-    ];
+    const validStatuses = ["pending", "accepted", "rejected"];
     if (!validStatuses.includes(status)) {
       res.status(400).json({
         success: false,
@@ -728,7 +748,7 @@ export const updateApplicationStatus = async (
       return;
     }
 
-    const application = await JobApplication.findById(id);
+    const application = await Application.findById(id);
     if (!application) {
       res.status(404).json({
         success: false,
@@ -738,8 +758,7 @@ export const updateApplicationStatus = async (
     }
 
     // Check if client owns the job
-    const job = await Job.findById(application.jobId);
-    if (!job || job.clientId.toString() !== clientId) {
+    if (application.clientId.toString() !== userId) {
       res.status(403).json({
         success: false,
         error:
@@ -750,24 +769,23 @@ export const updateApplicationStatus = async (
 
     // Update status
     application.status = status;
-    application.updatedAt = new Date();
     await application.save();
 
-    // If accepted, update job status and close other applications
+    // If accepted, update job status
     if (status === "accepted") {
       await Job.findByIdAndUpdate(application.jobId, {
         status: "in_progress",
-        freelancerId: application.freelancerId,
+        freelancerId: application.freelancer._id,
       });
 
       // Reject all other applications for this job
-      await JobApplication.updateMany(
+      await Application.updateMany(
         {
           jobId: application.jobId,
           _id: { $ne: application._id },
-          status: { $in: ["pending", "reviewed"] },
+          status: "pending",
         },
-        { status: "rejected", updatedAt: new Date() }
+        { status: "rejected" }
       );
     }
 
@@ -797,14 +815,15 @@ export const updateApplicationStatus = async (
   }
 };
 
-// ❌ Delete/cancel application (freelancer only)
+// ❌ Delete/cancel application (Freelancer only)
 export const deleteApplication = async (
   req: AuthRequest,
   res: Response
 ): Promise<void> => {
   try {
     const { id } = req.params;
-    const freelancerId = req.user?.id;
+    const userId = req.user?.id;
+    const userRole = req.user?.role;
 
     if (!id) {
       res.status(400).json({
@@ -814,8 +833,16 @@ export const deleteApplication = async (
       return;
     }
 
+    if (!userId) {
+      res.status(401).json({
+        success: false,
+        error: "Unauthorized",
+      });
+      return;
+    }
+
     // Check if user is a freelancer
-    if (req.user?.role !== "freelancer") {
+    if (userRole !== "freelancer") {
       res.status(403).json({
         success: false,
         error: "Only freelancers can delete their applications",
@@ -823,7 +850,7 @@ export const deleteApplication = async (
       return;
     }
 
-    const application = await JobApplication.findById(id);
+    const application = await Application.findById(id);
     if (!application) {
       res.status(404).json({
         success: false,
@@ -833,7 +860,7 @@ export const deleteApplication = async (
     }
 
     // Check if freelancer owns the application
-    if (application.freelancerId.toString() !== freelancerId) {
+    if (application.freelancer._id.toString() !== userId) {
       res.status(403).json({
         success: false,
         error: "Access denied. You can only delete your own applications",
@@ -841,8 +868,8 @@ export const deleteApplication = async (
       return;
     }
 
-    // Check if application can be deleted (only pending or reviewed)
-    if (!["pending", "reviewed"].includes(application.status)) {
+    // Check if application can be deleted (only pending)
+    if (application.status !== "pending") {
       res.status(400).json({
         success: false,
         error: `Cannot delete application with status: ${application.status}`,
@@ -851,7 +878,7 @@ export const deleteApplication = async (
     }
 
     // Delete the application
-    await JobApplication.deleteOne({ _id: id });
+    await Application.deleteOne({ _id: id });
 
     // Decrement applications count in job
     await Job.findByIdAndUpdate(application.jobId, {
@@ -902,19 +929,19 @@ export const getApplicationStats = async (
 
     if (userRole === "freelancer") {
       // Freelancer stats
-      const totalApplications = await JobApplication.countDocuments({
-        freelancerId: userId,
+      const totalApplications = await Application.countDocuments({
+        "freelancer._id": userId,
       });
-      const pendingApplications = await JobApplication.countDocuments({
-        freelancerId: userId,
+      const pendingApplications = await Application.countDocuments({
+        "freelancer._id": userId,
         status: "pending",
       });
-      const acceptedApplications = await JobApplication.countDocuments({
-        freelancerId: userId,
+      const acceptedApplications = await Application.countDocuments({
+        "freelancer._id": userId,
         status: "accepted",
       });
-      const rejectedApplications = await JobApplication.countDocuments({
-        freelancerId: userId,
+      const rejectedApplications = await Application.countDocuments({
+        "freelancer._id": userId,
         status: "rejected",
       });
 
@@ -930,19 +957,15 @@ export const getApplicationStats = async (
       };
     } else if (userRole === "client") {
       // Client stats
-      // Get all jobs by this client
-      const clientJobs = await Job.find({ clientId: userId }).select("_id");
-      const jobIds = clientJobs.map((job) => job._id);
-
-      const totalApplications = await JobApplication.countDocuments({
-        jobId: { $in: jobIds },
+      const totalApplications = await Application.countDocuments({
+        clientId: userId,
       });
-      const pendingApplications = await JobApplication.countDocuments({
-        jobId: { $in: jobIds },
+      const pendingApplications = await Application.countDocuments({
+        clientId: userId,
         status: "pending",
       });
-      const acceptedApplications = await JobApplication.countDocuments({
-        jobId: { $in: jobIds },
+      const acceptedApplications = await Application.countDocuments({
+        clientId: userId,
         status: "accepted",
       });
 
@@ -950,8 +973,6 @@ export const getApplicationStats = async (
         total: totalApplications,
         pending: pendingApplications,
         accepted: acceptedApplications,
-        averageApplicantsPerJob:
-          clientJobs.length > 0 ? totalApplications / clientJobs.length : 0,
       };
     } else {
       res.status(403).json({
@@ -983,18 +1004,15 @@ export const searchApplications = async (
   try {
     const userId = req.user?.id;
     const userRole = req.user?.role;
-    const { status, minRate, maxRate, startDate, endDate } = req.query;
+    const { status, jobTitle, startDate, endDate } = req.query;
 
     let query: any = {};
 
     // Build query based on user role
     if (userRole === "freelancer") {
-      query.freelancerId = userId;
+      query["freelancer._id"] = userId;
     } else if (userRole === "client") {
-      // Get client's job IDs
-      const clientJobs = await Job.find({ clientId: userId }).select("_id");
-      const jobIds = clientJobs.map((job) => job._id);
-      query.jobId = { $in: jobIds };
+      query.clientId = userId;
     } else {
       res.status(403).json({
         success: false,
@@ -1004,38 +1022,56 @@ export const searchApplications = async (
     }
 
     // Add filters
-    if (status && typeof status === "string") {
+    if (
+      status &&
+      typeof status === "string" &&
+      ["pending", "accepted", "rejected"].includes(status)
+    ) {
       query.status = status;
     }
 
-    if (minRate && typeof minRate === "string") {
-      query.proposedRate = { $gte: parseFloat(minRate) };
-    }
-
-    if (maxRate && typeof maxRate === "string") {
-      query.proposedRate = { ...query.proposedRate, $lte: parseFloat(maxRate) };
-    }
-
     if (startDate && typeof startDate === "string") {
-      query.createdAt = { $gte: new Date(startDate) };
+      query.appliedAt = { $gte: new Date(startDate) };
     }
 
     if (endDate && typeof endDate === "string") {
-      query.createdAt = { ...query.createdAt, $lte: new Date(endDate) };
+      query.appliedAt = { ...query.appliedAt, $lte: new Date(endDate) };
     }
 
-    const applications = await JobApplication.find(query)
-      .populate("jobId", "title description budget duration")
-      .populate(
-        userRole === "client" ? "freelancerId" : "clientId",
+    let applicationsQuery = Application.find(query);
+
+    // If searching by job title, populate and filter
+    if (jobTitle && typeof jobTitle === "string") {
+      applicationsQuery = applicationsQuery.populate({
+        path: "jobId",
+        match: { title: { $regex: jobTitle, $options: "i" } },
+        select: "title description budget duration",
+      });
+    } else {
+      applicationsQuery = applicationsQuery.populate(
+        "jobId",
+        "title description budget duration"
+      );
+    }
+
+    if (userRole === "client") {
+      applicationsQuery = applicationsQuery.populate(
+        "freelancer",
         "name email"
-      )
-      .sort({ createdAt: -1 });
+      );
+    }
+
+    const applications = await applicationsQuery.sort({ appliedAt: -1 });
+
+    // Filter out null jobIds if job title search was used
+    const filteredApplications = applications.filter(
+      (app) => app.jobId !== null
+    );
 
     res.status(200).json({
       success: true,
-      count: applications.length,
-      data: { applications },
+      count: filteredApplications.length,
+      data: { applications: filteredApplications },
     });
   } catch (error: unknown) {
     console.error("Search applications error:", error);
