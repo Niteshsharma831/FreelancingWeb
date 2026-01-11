@@ -1,463 +1,1050 @@
-import { Request, Response, NextFunction } from "express";
+// import { Request, Response, NextFunction } from "express";
+// import mongoose from "mongoose";
+// import Freelancer from "../models/Freelancer";
+// import Otp from "../models/Otp";
+// import { generateOtp, otpExpiry } from "../utils/otp";
+// import { sendOtpMail } from "../utils/mailer";
+// import { generateToken } from "../utils/jwt";
+// import jwt from "jsonwebtoken";
+
+// // Helper to safely convert Mongo ObjectId to string
+// const getIdString = (id: any) => (id as mongoose.Types.ObjectId).toString();
+
+// // Send OTP - FIXED with proper error handling
+// export const sendOtp = async (req: Request, res: Response) => {
+//   try {
+//     const { email } = req.body;
+//     if (!email) return res.status(400).json({ error: "Email required" });
+
+//     const otp = generateOtp();
+//     const expiresAt = otpExpiry();
+
+//     await Otp.findOneAndUpdate(
+//       { email },
+//       { otp, expiresAt },
+//       { upsert: true, new: true }
+//     );
+
+//     await sendOtpMail(email, otp);
+//     res.status(200).json({ message: "OTP sent successfully" });
+//   } catch (error) {
+//     console.error("Send OTP error:", error);
+//     res.status(500).json({ error: "Failed to send OTP" });
+//   }
+// };
+
+// // Register Freelancer - FIXED with better validation
+// export const registerFreelancer = async (req: Request, res: Response) => {
+//   try {
+//     const { name, gender, email, otp } = req.body;
+
+//     // Validate required fields
+//     if (!name || !gender || !email || !otp) {
+//       return res.status(400).json({ error: "All fields are required" });
+//     }
+
+//     const existing = await Freelancer.findOne({ email });
+//     if (existing) return res.status(409).json({ error: "Email already registered" });
+
+//     const otpRecord = await Otp.findOne({ email });
+//     if (!otpRecord || otpRecord.otp !== otp) {
+//       return res.status(401).json({ error: "Invalid OTP" });
+//     }
+
+//     if (otpRecord.expiresAt < new Date()) {
+//       await Otp.deleteOne({ email });
+//       return res.status(401).json({ error: "OTP expired" });
+//     }
+
+//     const user = new Freelancer({
+//       name,
+//       gender,
+//       email,
+//       role: "freelancer",
+//       profileCompleted: false,
+//     });
+
+//     await user.save();
+//     await Otp.deleteOne({ email });
+
+//     const userId = getIdString(user._id);
+//     const token = generateToken(userId, user.role, user.email);
+
+//     // FIXED: Correct cookie settings for production
+//     const isProduction = process.env.NODE_ENV === "production";
+
+//     res.cookie("token", token, {
+//       httpOnly: true,
+//       secure: isProduction,
+//       sameSite: isProduction ? "none" : "lax",
+//       maxAge: 7 * 24 * 60 * 60 * 1000,
+//       path: "/",
+//     });
+
+//     return res.status(201).json({
+//       success: true,
+//       message: "Registration successful",
+//       user: {
+//         _id: user._id,
+//         name: user.name,
+//         email: user.email,
+//         role: user.role,
+//         profileCompleted: user.profileCompleted
+//       }
+//     });
+//   } catch (error: any) {
+//     console.error("Registration error:", error);
+
+//     if (error.code === 11000) {
+//       return res.status(409).json({ error: "Email already exists" });
+//     }
+
+//     res.status(500).json({ error: "Registration failed" });
+//   }
+// };
+
+// // Login - FIXED with correct cookie settings
+// export const loginFreelancer = async (req: Request, res: Response) => {
+//   try {
+//     const { email, otp } = req.body;
+
+//     if (!email || !otp) {
+//       return res.status(400).json({ error: "Email and OTP required" });
+//     }
+
+//     const user = await Freelancer.findOne({ email });
+//     if (!user) return res.status(404).json({ error: "User not registered" });
+
+//     const otpRecord = await Otp.findOne({ email });
+//     if (!otpRecord || otpRecord.otp !== otp) {
+//       return res.status(401).json({ error: "Invalid OTP" });
+//     }
+
+//     if (otpRecord.expiresAt < new Date()) {
+//       await Otp.deleteOne({ email });
+//       return res.status(401).json({ error: "OTP expired" });
+//     }
+
+//     await Otp.deleteOne({ email });
+
+//     const userId = getIdString(user._id);
+//     const token = generateToken(userId, user.role, user.email);
+
+//     // FIXED: Consistent cookie settings
+//     const isProduction = process.env.NODE_ENV === "production";
+
+//     res.cookie("token", token, {
+//       httpOnly: true,
+//       secure: isProduction,
+//       sameSite: isProduction ? "none" : "lax",
+//       maxAge: 7 * 24 * 60 * 60 * 1000,
+//       path: "/",
+//     });
+
+//     return res.status(200).json({
+//       success: true,
+//       message: "Login successful",
+//       user: {
+//         _id: user._id,
+//         name: user.name,
+//         email: user.email,
+//         role: user.role,
+//         profileCompleted: user.profileCompleted
+//       }
+//     });
+//   } catch (error) {
+//     console.error("Login error:", error);
+//     res.status(500).json({ error: "Login failed" });
+//   }
+// };
+
+// // Logout - FIXED with correct cookie clearing
+// export const logoutFreelancer = async (req: Request, res: Response) => {
+//   const isProduction = process.env.NODE_ENV === "production";
+
+//   res.clearCookie("token", {
+//     httpOnly: true,
+//     secure: isProduction,
+//     sameSite: isProduction ? "none" : "lax",
+//     path: "/",
+//   });
+
+//   res.status(200).json({ success: true, message: "Logged out successfully" });
+// };
+
+// // Protect middleware - FIXED to match token structure
+// export const protectFreelancer = (req: Request, res: Response, next: NextFunction) => {
+//   try {
+//     const token = req.cookies.token || req.headers.authorization?.split(" ")[1];
+//     const JWT_SECRET = process.env.JWT_SECRET || "your_jwt_secret";
+
+//     if (!token) {
+//       return res.status(401).json({ error: "Authentication required" });
+//     }
+
+//     // FIXED: The token should be verified with proper structure
+//     const decoded = jwt.verify(token, JWT_SECRET) as {
+//       userId: string;
+//       role: string;
+//       email: string;
+//       iat: number;
+//       exp: number;
+//     };
+
+//     // FIXED: Check if token is expired
+//     if (Date.now() >= decoded.exp * 1000) {
+//       return res.status(401).json({ error: "Token expired" });
+//     }
+
+//     if (decoded.role !== "freelancer") {
+//       return res.status(403).json({ error: "Access denied for non-freelancer" });
+//     }
+
+//     // FIXED: Attach user info to request
+//     (req as any).user = {
+//       id: decoded.userId,
+//       role: decoded.role,
+//       email: decoded.email
+//     };
+
+//     next();
+//   } catch (err: any) {
+//     if (err.name === 'JsonWebTokenError') {
+//       return res.status(403).json({ error: "Invalid token" });
+//     }
+//     if (err.name === 'TokenExpiredError') {
+//       return res.status(401).json({ error: "Token expired" });
+//     }
+//     console.error("Auth middleware error:", err);
+//     res.status(500).json({ error: "Authentication failed" });
+//   }
+// };
+
+// // Update Profile - FIXED with proper validation
+// export const updateFreelancer = async (req: Request, res: Response) => {
+//   try {
+//     const { profile } = req.body;
+//     const userId = (req as any).user?.id;
+
+//     if (!userId) {
+//       return res.status(401).json({ error: "Unauthorized" });
+//     }
+
+//     if (!profile || typeof profile !== 'object') {
+//       return res.status(400).json({ error: "Profile data required" });
+//     }
+
+//     const updated = await Freelancer.findByIdAndUpdate(
+//       userId,
+//       {
+//         $set: {
+//           profile: {
+//             ...profile,
+//             updatedAt: new Date()
+//           },
+//           profileCompleted: true
+//         }
+//       },
+//       { new: true, runValidators: true }
+//     );
+
+//     if (!updated) {
+//       return res.status(404).json({ error: "Freelancer not found" });
+//     }
+
+//     res.status(200).json({
+//       success: true,
+//       message: "Profile updated",
+//       user: updated
+//     });
+//   } catch (error: any) {
+//     console.error("Update error:", error);
+
+//     if (error.name === 'ValidationError') {
+//       return res.status(400).json({ error: "Invalid profile data" });
+//     }
+
+//     res.status(500).json({ error: "Failed to update profile" });
+//   }
+// };
+
+// // Get a single freelancer - FIXED
+// export const getFreelancer = async (req: Request, res: Response) => {
+//   try {
+//     const { email } = req.query;
+//     const userId = (req as any).user?.id;
+
+//     let freelancer;
+
+//     if (email) {
+//       freelancer = await Freelancer.findOne({ email });
+//     } else if (userId) {
+//       freelancer = await Freelancer.findById(userId);
+//     } else {
+//       return res.status(400).json({ error: "Email or authentication required" });
+//     }
+
+//     if (!freelancer) {
+//       return res.status(404).json({ error: "Freelancer not found" });
+//     }
+
+//     res.status(200).json({ success: true, user: freelancer });
+//   } catch (error) {
+//     console.error("Get freelancer error:", error);
+//     res.status(500).json({ error: "Failed to fetch freelancer" });
+//   }
+// };
+
+// // Get all freelancers - FIXED
+// export const getAllFreelancers = async (req: Request, res: Response) => {
+//   try {
+//     const freelancers = await Freelancer.find().select("-__v");
+//     res.status(200).json({ success: true, users: freelancers });
+//   } catch (error) {
+//     console.error("Get all freelancers error:", error);
+//     res.status(500).json({ error: "Failed to fetch freelancers" });
+//   }
+// };
+
+// // Get freelancer profile - FIXED
+// export const getFreelancerProfile = async (req: Request, res: Response) => {
+//   try {
+//     const freelancerId = (req as any).user?.id;
+
+//     if (!freelancerId) {
+//       return res.status(401).json({ error: "Unauthorized" });
+//     }
+
+//     const freelancer = await Freelancer.findById(freelancerId).select("-__v");
+
+//     if (!freelancer) {
+//       return res.status(404).json({ error: "Freelancer not found" });
+//     }
+
+//     res.status(200).json({ success: true, user: freelancer });
+//   } catch (error) {
+//     console.error("Get profile error:", error);
+//     res.status(500).json({ error: "Failed to fetch profile" });
+//   }
+// };
+
+// src/controllers/application.ts
+import { Request, Response } from "express";
 import mongoose from "mongoose";
+import JobApplication from "../models/Application";
+import Job from "../models/Job";
+import Client from "../models/clientModel";
 import Freelancer from "../models/Freelancer";
-import Otp from "../models/Otp";
-import { generateOtp, otpExpiry } from "../utils/otp";
-import { sendOtpMail } from "../utils/mailer";
-import { generateToken } from "../utils/jwt";
-import jwt from "jsonwebtoken";
 
-// Helper to safely convert Mongo ObjectId to string
-const getIdString = (id: any): string => {
-  if (id instanceof mongoose.Types.ObjectId) {
-    return id.toString();
-  }
-  return String(id);
-};
+// Type for authenticated request
+interface AuthRequest extends Request {
+  user?: {
+    id: string;
+    role: string;
+    email: string;
+  };
+}
 
-// Send OTP
-export const sendOtp = async (req: Request, res: Response): Promise<void> => {
-  try {
-    const { email } = req.body;
-
-    if (!email) {
-      res.status(400).json({ error: "Email required" });
-      return;
-    }
-
-    const otp = generateOtp();
-    const expiresAt = otpExpiry();
-
-    await Otp.findOneAndUpdate(
-      { email },
-      { otp, expiresAt },
-      { upsert: true, new: true }
-    );
-
-    await sendOtpMail(email, otp);
-    res.status(200).json({ message: "OTP sent successfully" });
-  } catch (error: unknown) {
-    console.error("Send OTP error:", error);
-    if (error instanceof Error) {
-      res.status(500).json({ error: error.message });
-    } else {
-      res.status(500).json({ error: "Failed to send OTP" });
-    }
-  }
-};
-
-// Register Freelancer
-export const registerFreelancer = async (
-  req: Request,
+// 🆕 Create a new job application
+export const createApplication = async (
+  req: AuthRequest,
   res: Response
 ): Promise<void> => {
   try {
-    const { name, gender, email, otp } = req.body;
+    const freelancerId = req.user?.id;
+    const { jobId, coverLetter, proposedRate, estimatedDays } = req.body;
 
     // Validate required fields
-    if (!name || !gender || !email || !otp) {
-      res.status(400).json({ error: "All fields are required" });
+    if (!jobId || !coverLetter || !proposedRate || !estimatedDays) {
+      res.status(400).json({
+        success: false,
+        error:
+          "All fields are required: jobId, coverLetter, proposedRate, estimatedDays",
+      });
       return;
     }
 
-    const existing = await Freelancer.findOne({ email });
-    if (existing) {
-      res.status(409).json({ error: "Email already registered" });
+    // Check if user is a freelancer
+    if (req.user?.role !== "freelancer") {
+      res.status(403).json({
+        success: false,
+        error: "Only freelancers can apply for jobs",
+      });
       return;
     }
 
-    const otpRecord = await Otp.findOne({ email });
-    if (!otpRecord || otpRecord.otp !== otp) {
-      res.status(401).json({ error: "Invalid OTP" });
+    // Check if job exists
+    const job = await Job.findById(jobId);
+    if (!job) {
+      res.status(404).json({
+        success: false,
+        error: "Job not found",
+      });
       return;
     }
 
-    if (otpRecord.expiresAt < new Date()) {
-      await Otp.deleteOne({ email });
-      res.status(401).json({ error: "OTP expired" });
+    // Check if job is open for applications
+    if (job.status !== "open") {
+      res.status(400).json({
+        success: false,
+        error: `Job is ${job.status}. Cannot apply.`,
+      });
       return;
     }
 
-    const user = new Freelancer({
-      name,
-      gender,
-      email,
-      role: "freelancer",
-      profileCompleted: false,
+    // Check if freelancer exists
+    const freelancer = await Freelancer.findById(freelancerId);
+    if (!freelancer) {
+      res.status(404).json({
+        success: false,
+        error: "Freelancer not found",
+      });
+      return;
+    }
+
+    // Check if freelancer has already applied
+    const existingApplication = await JobApplication.findOne({
+      jobId,
+      freelancerId,
     });
 
-    await user.save();
-    await Otp.deleteOne({ email });
+    if (existingApplication) {
+      res.status(400).json({
+        success: false,
+        error: "You have already applied for this job",
+      });
+      return;
+    }
 
-    const userId = getIdString(user._id);
-    const token = generateToken(userId, user.role, user.email);
+    // Create new application
+    const application = new JobApplication({
+      jobId,
+      clientId: job.clientId,
+      freelancerId,
+      freelancerName: freelancer.name,
+      freelancerEmail: freelancer.email,
+      coverLetter,
+      proposedRate: parseFloat(proposedRate),
+      estimatedDays: parseInt(estimatedDays),
+      status: "pending",
+    });
 
-    // Correct cookie settings for production
-    const isProduction = process.env.NODE_ENV === "production";
+    await application.save();
 
-    res.cookie("token", token, {
-      httpOnly: true,
-      secure: isProduction,
-      sameSite: isProduction ? "none" : "lax",
-      maxAge: 7 * 24 * 60 * 60 * 1000,
-      path: "/",
+    // Update job applications count
+    await Job.findByIdAndUpdate(jobId, {
+      $inc: { applicationsCount: 1 },
     });
 
     res.status(201).json({
       success: true,
-      message: "Registration successful",
-      user: {
-        _id: user._id,
-        name: user.name,
-        email: user.email,
-        role: user.role,
-        profileCompleted: user.profileCompleted,
-      },
+      message: "Application submitted successfully",
+      data: { application },
     });
   } catch (error: unknown) {
-    console.error("Registration error:", error);
+    console.error("Create application error:", error);
 
-    if (error instanceof Error && "code" in error) {
-      const err = error as any;
-      if (err.code === 11000) {
-        res.status(409).json({ error: "Email already exists" });
-        return;
-      }
+    if (error instanceof mongoose.Error.ValidationError) {
+      res.status(400).json({
+        success: false,
+        error: "Validation failed",
+        details: Object.values(error.errors).map((err) => err.message),
+      });
+      return;
     }
 
-    if (error instanceof Error) {
-      res.status(500).json({ error: error.message });
-    } else {
-      res.status(500).json({ error: "Registration failed" });
+    if (error instanceof mongoose.Error.CastError) {
+      res.status(400).json({
+        success: false,
+        error: "Invalid ID format",
+      });
+      return;
     }
+
+    res.status(500).json({
+      success: false,
+      error:
+        error instanceof Error ? error.message : "Failed to create application",
+    });
   }
 };
 
-// Login
-export const loginFreelancer = async (
-  req: Request,
+// 📋 Get all applications for a job (client view)
+export const getJobApplications = async (
+  req: AuthRequest,
   res: Response
 ): Promise<void> => {
   try {
-    const { email, otp } = req.body;
+    const { jobId } = req.params;
+    const userId = req.user?.id;
+    const userRole = req.user?.role;
 
-    if (!email || !otp) {
-      res.status(400).json({ error: "Email and OTP required" });
+    if (!jobId) {
+      res.status(400).json({
+        success: false,
+        error: "Job ID is required",
+      });
       return;
     }
 
-    const user = await Freelancer.findOne({ email });
-    if (!user) {
-      res.status(404).json({ error: "User not registered" });
+    // Check if job exists
+    const job = await Job.findById(jobId);
+    if (!job) {
+      res.status(404).json({
+        success: false,
+        error: "Job not found",
+      });
       return;
     }
 
-    const otpRecord = await Otp.findOne({ email });
-    if (!otpRecord || otpRecord.otp !== otp) {
-      res.status(401).json({ error: "Invalid OTP" });
+    // Check permissions
+    if (userRole === "client") {
+      // Client can only see applications for their own jobs
+      if (job.clientId.toString() !== userId) {
+        res.status(403).json({
+          success: false,
+          error:
+            "Access denied. You can only view applications for your own jobs",
+        });
+        return;
+      }
+    } else if (userRole === "freelancer") {
+      // Freelancer can only see their own applications
+      const applications = await JobApplication.find({
+        jobId,
+        freelancerId: userId,
+      }).populate("jobId", "title description budget duration");
+
+      res.status(200).json({
+        success: true,
+        count: applications.length,
+        data: { applications },
+      });
+      return;
+    } else {
+      res.status(403).json({
+        success: false,
+        error: "Access denied",
+      });
       return;
     }
 
-    if (otpRecord.expiresAt < new Date()) {
-      await Otp.deleteOne({ email });
-      res.status(401).json({ error: "OTP expired" });
+    // Get all applications for this job (client view)
+    const applications = await JobApplication.find({ jobId })
+      .populate("freelancerId", "name email profile")
+      .sort({ createdAt: -1 });
+
+    res.status(200).json({
+      success: true,
+      count: applications.length,
+      data: { applications },
+    });
+  } catch (error: unknown) {
+    console.error("Get job applications error:", error);
+
+    if (error instanceof mongoose.Error.CastError) {
+      res.status(400).json({
+        success: false,
+        error: "Invalid job ID format",
+      });
       return;
     }
 
-    await Otp.deleteOne({ email });
+    res.status(500).json({
+      success: false,
+      error:
+        error instanceof Error ? error.message : "Failed to fetch applications",
+    });
+  }
+};
 
-    const userId = getIdString(user._id);
-    const token = generateToken(userId, user.role, user.email);
+// 👤 Get freelancer's applications
+export const getFreelancerApplications = async (
+  req: AuthRequest,
+  res: Response
+): Promise<void> => {
+  try {
+    const freelancerId = req.user?.id;
+    const { status } = req.query;
 
-    // Consistent cookie settings
-    const isProduction = process.env.NODE_ENV === "production";
+    if (!freelancerId) {
+      res.status(401).json({
+        success: false,
+        error: "Unauthorized",
+      });
+      return;
+    }
 
-    res.cookie("token", token, {
-      httpOnly: true,
-      secure: isProduction,
-      sameSite: isProduction ? "none" : "lax",
-      maxAge: 7 * 24 * 60 * 60 * 1000,
-      path: "/",
+    if (req.user?.role !== "freelancer") {
+      res.status(403).json({
+        success: false,
+        error: "Access denied. Only freelancers can view their applications",
+      });
+      return;
+    }
+
+    // Build query
+    const query: any = { freelancerId };
+
+    if (status && typeof status === "string") {
+      query.status = status;
+    }
+
+    const applications = await JobApplication.find(query)
+      .populate(
+        "jobId",
+        "title description budget duration category status clientId"
+      )
+      .populate("clientId", "name email")
+      .sort({ createdAt: -1 });
+
+    res.status(200).json({
+      success: true,
+      count: applications.length,
+      data: { applications },
+    });
+  } catch (error: unknown) {
+    console.error("Get freelancer applications error:", error);
+    res.status(500).json({
+      success: false,
+      error:
+        error instanceof Error ? error.message : "Failed to fetch applications",
+    });
+  }
+};
+
+// 🔍 Get single application by ID
+export const getApplicationById = async (
+  req: AuthRequest,
+  res: Response
+): Promise<void> => {
+  try {
+    const { id } = req.params;
+    const userId = req.user?.id;
+    const userRole = req.user?.role;
+
+    if (!id) {
+      res.status(400).json({
+        success: false,
+        error: "Application ID is required",
+      });
+      return;
+    }
+
+    const application = await JobApplication.findById(id)
+      .populate(
+        "jobId",
+        "title description budget duration category status clientId"
+      )
+      .populate("freelancerId", "name email profile")
+      .populate("clientId", "name email");
+
+    if (!application) {
+      res.status(404).json({
+        success: false,
+        error: "Application not found",
+      });
+      return;
+    }
+
+    // Check permissions
+    const isClient =
+      userRole === "client" && application.clientId.toString() === userId;
+    const isFreelancer =
+      userRole === "freelancer" &&
+      application.freelancerId.toString() === userId;
+    const isAdmin = userRole === "admin";
+
+    if (!isClient && !isFreelancer && !isAdmin) {
+      res.status(403).json({
+        success: false,
+        error: "Access denied",
+      });
+      return;
+    }
+
+    res.status(200).json({
+      success: true,
+      data: { application },
+    });
+  } catch (error: unknown) {
+    console.error("Get application by ID error:", error);
+
+    if (error instanceof mongoose.Error.CastError) {
+      res.status(400).json({
+        success: false,
+        error: "Invalid application ID format",
+      });
+      return;
+    }
+
+    res.status(500).json({
+      success: false,
+      error:
+        error instanceof Error ? error.message : "Failed to fetch application",
+    });
+  }
+};
+
+// ✏️ Update application status (client only)
+export const updateApplicationStatus = async (
+  req: AuthRequest,
+  res: Response
+): Promise<void> => {
+  try {
+    const { id } = req.params;
+    const { status } = req.body;
+    const clientId = req.user?.id;
+
+    if (!id || !status) {
+      res.status(400).json({
+        success: false,
+        error: "Application ID and status are required",
+      });
+      return;
+    }
+
+    // Check if user is a client
+    if (req.user?.role !== "client") {
+      res.status(403).json({
+        success: false,
+        error: "Only clients can update application status",
+      });
+      return;
+    }
+
+    const validStatuses = [
+      "pending",
+      "reviewed",
+      "accepted",
+      "rejected",
+      "cancelled",
+    ];
+    if (!validStatuses.includes(status)) {
+      res.status(400).json({
+        success: false,
+        error: `Invalid status. Must be one of: ${validStatuses.join(", ")}`,
+      });
+      return;
+    }
+
+    const application = await JobApplication.findById(id);
+    if (!application) {
+      res.status(404).json({
+        success: false,
+        error: "Application not found",
+      });
+      return;
+    }
+
+    // Check if client owns the job
+    const job = await Job.findById(application.jobId);
+    if (!job || job.clientId.toString() !== clientId) {
+      res.status(403).json({
+        success: false,
+        error:
+          "Access denied. You can only update applications for your own jobs",
+      });
+      return;
+    }
+
+    // Update status
+    application.status = status;
+    application.updatedAt = new Date();
+    await application.save();
+
+    // If accepted, update job status and close other applications
+    if (status === "accepted") {
+      await Job.findByIdAndUpdate(application.jobId, {
+        status: "in_progress",
+        freelancerId: application.freelancerId,
+      });
+
+      // Reject all other applications for this job
+      await JobApplication.updateMany(
+        {
+          jobId: application.jobId,
+          _id: { $ne: application._id },
+          status: { $in: ["pending", "reviewed"] },
+        },
+        { status: "rejected", updatedAt: new Date() }
+      );
+    }
+
+    res.status(200).json({
+      success: true,
+      message: `Application ${status} successfully`,
+      data: { application },
+    });
+  } catch (error: unknown) {
+    console.error("Update application status error:", error);
+
+    if (error instanceof mongoose.Error.CastError) {
+      res.status(400).json({
+        success: false,
+        error: "Invalid application ID format",
+      });
+      return;
+    }
+
+    res.status(500).json({
+      success: false,
+      error:
+        error instanceof Error
+          ? error.message
+          : "Failed to update application status",
+    });
+  }
+};
+
+// ❌ Delete/cancel application (freelancer only)
+export const deleteApplication = async (
+  req: AuthRequest,
+  res: Response
+): Promise<void> => {
+  try {
+    const { id } = req.params;
+    const freelancerId = req.user?.id;
+
+    if (!id) {
+      res.status(400).json({
+        success: false,
+        error: "Application ID is required",
+      });
+      return;
+    }
+
+    // Check if user is a freelancer
+    if (req.user?.role !== "freelancer") {
+      res.status(403).json({
+        success: false,
+        error: "Only freelancers can delete their applications",
+      });
+      return;
+    }
+
+    const application = await JobApplication.findById(id);
+    if (!application) {
+      res.status(404).json({
+        success: false,
+        error: "Application not found",
+      });
+      return;
+    }
+
+    // Check if freelancer owns the application
+    if (application.freelancerId.toString() !== freelancerId) {
+      res.status(403).json({
+        success: false,
+        error: "Access denied. You can only delete your own applications",
+      });
+      return;
+    }
+
+    // Check if application can be deleted (only pending or reviewed)
+    if (!["pending", "reviewed"].includes(application.status)) {
+      res.status(400).json({
+        success: false,
+        error: `Cannot delete application with status: ${application.status}`,
+      });
+      return;
+    }
+
+    // Delete the application
+    await JobApplication.deleteOne({ _id: id });
+
+    // Decrement applications count in job
+    await Job.findByIdAndUpdate(application.jobId, {
+      $inc: { applicationsCount: -1 },
     });
 
     res.status(200).json({
       success: true,
-      message: "Login successful",
-      user: {
-        _id: user._id,
-        name: user.name,
-        email: user.email,
-        role: user.role,
-        profileCompleted: user.profileCompleted,
-      },
+      message: "Application deleted successfully",
     });
   } catch (error: unknown) {
-    console.error("Login error:", error);
-    if (error instanceof Error) {
-      res.status(500).json({ error: error.message });
-    } else {
-      res.status(500).json({ error: "Login failed" });
+    console.error("Delete application error:", error);
+
+    if (error instanceof mongoose.Error.CastError) {
+      res.status(400).json({
+        success: false,
+        error: "Invalid application ID format",
+      });
+      return;
     }
+
+    res.status(500).json({
+      success: false,
+      error:
+        error instanceof Error ? error.message : "Failed to delete application",
+    });
   }
 };
 
-// Logout
-export const logoutFreelancer = (req: Request, res: Response): void => {
-  const isProduction = process.env.NODE_ENV === "production";
-
-  res.clearCookie("token", {
-    httpOnly: true,
-    secure: isProduction,
-    sameSite: isProduction ? "none" : "lax",
-    path: "/",
-  });
-
-  res.status(200).json({ success: true, message: "Logged out successfully" });
-};
-
-// Protect middleware
-export const protectFreelancer = (
-  req: Request,
-  res: Response,
-  next: NextFunction
-): void => {
-  try {
-    const token = req.cookies.token || req.headers.authorization?.split(" ")[1];
-    const JWT_SECRET = process.env.JWT_SECRET || "your_jwt_secret";
-
-    if (!token) {
-      res.status(401).json({ error: "Authentication required" });
-      return;
-    }
-
-    // Verify token with proper structure
-    const decoded = jwt.verify(token, JWT_SECRET) as {
-      userId: string;
-      role: string;
-      email: string;
-      iat: number;
-      exp: number;
-    };
-
-    // Check if token is expired
-    if (Date.now() >= decoded.exp * 1000) {
-      res.status(401).json({ error: "Token expired" });
-      return;
-    }
-
-    if (decoded.role !== "freelancer") {
-      res.status(403).json({ error: "Access denied for non-freelancer" });
-      return;
-    }
-
-    // Attach user info to request - This matches your Express type definition
-    req.user = {
-      id: decoded.userId,
-      role: "freelancer",
-      email: decoded.email,
-    };
-
-    next();
-  } catch (err: unknown) {
-    if (err instanceof Error) {
-      if (err.name === "JsonWebTokenError") {
-        res.status(403).json({ error: "Invalid token" });
-        return;
-      }
-      if (err.name === "TokenExpiredError") {
-        res.status(401).json({ error: "Token expired" });
-        return;
-      }
-      console.error("Auth middleware error:", err);
-      res.status(500).json({ error: err.message });
-      return;
-    }
-    console.error("Unknown auth middleware error:", err);
-    res.status(500).json({ error: "Authentication failed" });
-  }
-};
-
-// Update Profile
-export const updateFreelancer = async (
-  req: Request,
+// 📊 Get application statistics
+export const getApplicationStats = async (
+  req: AuthRequest,
   res: Response
 ): Promise<void> => {
   try {
-    const { profile } = req.body;
     const userId = req.user?.id;
+    const userRole = req.user?.role;
 
     if (!userId) {
-      res.status(401).json({ error: "Unauthorized" });
+      res.status(401).json({
+        success: false,
+        error: "Unauthorized",
+      });
       return;
     }
 
-    if (!profile || typeof profile !== "object") {
-      res.status(400).json({ error: "Profile data required" });
-      return;
-    }
+    let stats;
 
-    const updated = await Freelancer.findByIdAndUpdate(
-      userId,
-      {
-        $set: {
-          profile: {
-            ...profile,
-            updatedAt: new Date(),
-          },
-          profileCompleted: true,
-        },
-      },
-      { new: true, runValidators: true }
-    );
+    if (userRole === "freelancer") {
+      // Freelancer stats
+      const totalApplications = await JobApplication.countDocuments({
+        freelancerId: userId,
+      });
+      const pendingApplications = await JobApplication.countDocuments({
+        freelancerId: userId,
+        status: "pending",
+      });
+      const acceptedApplications = await JobApplication.countDocuments({
+        freelancerId: userId,
+        status: "accepted",
+      });
+      const rejectedApplications = await JobApplication.countDocuments({
+        freelancerId: userId,
+        status: "rejected",
+      });
 
-    if (!updated) {
-      res.status(404).json({ error: "Freelancer not found" });
+      stats = {
+        total: totalApplications,
+        pending: pendingApplications,
+        accepted: acceptedApplications,
+        rejected: rejectedApplications,
+        successRate:
+          totalApplications > 0
+            ? (acceptedApplications / totalApplications) * 100
+            : 0,
+      };
+    } else if (userRole === "client") {
+      // Client stats
+      // Get all jobs by this client
+      const clientJobs = await Job.find({ clientId: userId }).select("_id");
+      const jobIds = clientJobs.map((job) => job._id);
+
+      const totalApplications = await JobApplication.countDocuments({
+        jobId: { $in: jobIds },
+      });
+      const pendingApplications = await JobApplication.countDocuments({
+        jobId: { $in: jobIds },
+        status: "pending",
+      });
+      const acceptedApplications = await JobApplication.countDocuments({
+        jobId: { $in: jobIds },
+        status: "accepted",
+      });
+
+      stats = {
+        total: totalApplications,
+        pending: pendingApplications,
+        accepted: acceptedApplications,
+        averageApplicantsPerJob:
+          clientJobs.length > 0 ? totalApplications / clientJobs.length : 0,
+      };
+    } else {
+      res.status(403).json({
+        success: false,
+        error: "Access denied",
+      });
       return;
     }
 
     res.status(200).json({
       success: true,
-      message: "Profile updated",
-      user: updated,
+      data: { stats },
     });
   } catch (error: unknown) {
-    console.error("Update error:", error);
-
-    if (error instanceof Error) {
-      if (error.name === "ValidationError") {
-        res.status(400).json({ error: "Invalid profile data" });
-        return;
-      }
-      res.status(500).json({ error: error.message });
-      return;
-    }
-
-    res.status(500).json({ error: "Failed to update profile" });
+    console.error("Get application stats error:", error);
+    res.status(500).json({
+      success: false,
+      error:
+        error instanceof Error ? error.message : "Failed to fetch statistics",
+    });
   }
 };
 
-// Get a single freelancer
-export const getFreelancer = async (
-  req: Request,
+// 🔍 Search applications
+export const searchApplications = async (
+  req: AuthRequest,
   res: Response
 ): Promise<void> => {
   try {
-    const { email } = req.query;
     const userId = req.user?.id;
+    const userRole = req.user?.role;
+    const { status, minRate, maxRate, startDate, endDate } = req.query;
 
-    let freelancer;
+    let query: any = {};
 
-    if (email && typeof email === "string") {
-      freelancer = await Freelancer.findOne({ email });
-    } else if (userId) {
-      freelancer = await Freelancer.findById(userId);
+    // Build query based on user role
+    if (userRole === "freelancer") {
+      query.freelancerId = userId;
+    } else if (userRole === "client") {
+      // Get client's job IDs
+      const clientJobs = await Job.find({ clientId: userId }).select("_id");
+      const jobIds = clientJobs.map((job) => job._id);
+      query.jobId = { $in: jobIds };
     } else {
-      res.status(400).json({ error: "Email or authentication required" });
+      res.status(403).json({
+        success: false,
+        error: "Access denied",
+      });
       return;
     }
 
-    if (!freelancer) {
-      res.status(404).json({ error: "Freelancer not found" });
-      return;
+    // Add filters
+    if (status && typeof status === "string") {
+      query.status = status;
     }
 
-    res.status(200).json({ success: true, user: freelancer });
-  } catch (error: unknown) {
-    console.error("Get freelancer error:", error);
-    if (error instanceof Error) {
-      res.status(500).json({ error: error.message });
-    } else {
-      res.status(500).json({ error: "Failed to fetch freelancer" });
-    }
-  }
-};
-
-// Get all freelancers
-export const getAllFreelancers = async (
-  req: Request,
-  res: Response
-): Promise<void> => {
-  try {
-    const freelancers = await Freelancer.find().select("-__v");
-    res.status(200).json({ success: true, users: freelancers });
-  } catch (error: unknown) {
-    console.error("Get all freelancers error:", error);
-    if (error instanceof Error) {
-      res.status(500).json({ error: error.message });
-    } else {
-      res.status(500).json({ error: "Failed to fetch freelancers" });
-    }
-  }
-};
-
-// Get freelancer profile
-export const getFreelancerProfile = async (
-  req: Request,
-  res: Response
-): Promise<void> => {
-  try {
-    const freelancerId = req.user?.id;
-
-    if (!freelancerId) {
-      res.status(401).json({ error: "Unauthorized" });
-      return;
+    if (minRate && typeof minRate === "string") {
+      query.proposedRate = { $gte: parseFloat(minRate) };
     }
 
-    const freelancer = await Freelancer.findById(freelancerId).select("-__v");
-
-    if (!freelancer) {
-      res.status(404).json({ error: "Freelancer not found" });
-      return;
+    if (maxRate && typeof maxRate === "string") {
+      query.proposedRate = { ...query.proposedRate, $lte: parseFloat(maxRate) };
     }
 
-    res.status(200).json({ success: true, user: freelancer });
-  } catch (error: unknown) {
-    console.error("Get profile error:", error);
-    if (error instanceof Error) {
-      res.status(500).json({ error: error.message });
-    } else {
-      res.status(500).json({ error: "Failed to fetch profile" });
-    }
-  }
-};
-
-// Additional utility function: Verify freelancer
-export const verifyFreelancer = async (
-  req: Request,
-  res: Response
-): Promise<void> => {
-  try {
-    const freelancerId = req.user?.id;
-
-    if (!freelancerId) {
-      res.status(401).json({ error: "Unauthorized" });
-      return;
+    if (startDate && typeof startDate === "string") {
+      query.createdAt = { $gte: new Date(startDate) };
     }
 
-    const freelancer = await Freelancer.findById(freelancerId);
-
-    if (!freelancer) {
-      res.status(404).json({ error: "Freelancer not found" });
-      return;
+    if (endDate && typeof endDate === "string") {
+      query.createdAt = { ...query.createdAt, $lte: new Date(endDate) };
     }
+
+    const applications = await JobApplication.find(query)
+      .populate("jobId", "title description budget duration")
+      .populate(
+        userRole === "client" ? "freelancerId" : "clientId",
+        "name email"
+      )
+      .sort({ createdAt: -1 });
 
     res.status(200).json({
       success: true,
-      isAuthenticated: true,
-      user: {
-        _id: freelancer._id,
-        name: freelancer.name,
-        email: freelancer.email,
-        role: freelancer.role,
-        profileCompleted: freelancer.profileCompleted,
-      },
+      count: applications.length,
+      data: { applications },
     });
   } catch (error: unknown) {
-    console.error("Verify freelancer error:", error);
-    if (error instanceof Error) {
-      res.status(500).json({ error: error.message });
-    } else {
-      res.status(500).json({ error: "Verification failed" });
-    }
+    console.error("Search applications error:", error);
+    res.status(500).json({
+      success: false,
+      error:
+        error instanceof Error
+          ? error.message
+          : "Failed to search applications",
+    });
   }
 };
