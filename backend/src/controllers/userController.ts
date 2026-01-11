@@ -11,11 +11,11 @@ import { generateToken } from "../utils/jwt";
 export const sendOtp = async (req: Request, res: Response) => {
   try {
     const { email } = req.body;
-    
+
     if (!email) {
-      return res.status(400).json({ 
+      return res.status(400).json({
         success: false,
-        error: "Email is required" 
+        error: "Email is required",
       });
     }
 
@@ -24,22 +24,22 @@ export const sendOtp = async (req: Request, res: Response) => {
     if (!emailRegex.test(email)) {
       return res.status(400).json({
         success: false,
-        error: "Invalid email format"
+        error: "Invalid email format",
       });
     }
 
     // Check if user exists (for login) or not (for registration)
     const existingUser = await Client.findOne({ email });
-    
+
     const otp = generateOtp();
     const expiresAt = otpExpiry();
 
     await Otp.findOneAndUpdate(
       { email },
-      { 
-        otp, 
+      {
+        otp,
         expiresAt,
-        purpose: existingUser ? 'login' : 'register'
+        purpose: existingUser ? "login" : "register",
       },
       { upsert: true, new: true, setDefaultsOnInsert: true }
     );
@@ -47,38 +47,38 @@ export const sendOtp = async (req: Request, res: Response) => {
     // Try to send OTP email
     try {
       await sendOtpMail(email, otp);
-      
-      return res.status(200).json({ 
+
+      return res.status(200).json({
         success: true,
         message: "OTP sent to email successfully",
         email,
-        purpose: existingUser ? 'login' : 'register'
+        purpose: existingUser ? "login" : "register",
       });
     } catch (mailError) {
       console.error("Mail Error:", mailError);
-      
+
       // For development/testing, return OTP in response
-      if (process.env.NODE_ENV === 'development') {
+      if (process.env.NODE_ENV === "development") {
         return res.status(200).json({
           success: true,
           message: "OTP generated (email service failed in development)",
           email,
           otp, // Return OTP in development
           expiresAt,
-          purpose: existingUser ? 'login' : 'register'
+          purpose: existingUser ? "login" : "register",
         });
       } else {
         return res.status(500).json({
           success: false,
-          error: "Failed to send OTP email"
+          error: "Failed to send OTP email",
         });
       }
     }
   } catch (error) {
     console.error("OTP Error:", error);
-    return res.status(500).json({ 
+    return res.status(500).json({
       success: false,
-      error: "Failed to process OTP request" 
+      error: "Failed to process OTP request",
     });
   }
 };
@@ -88,21 +88,21 @@ export const createUser = async (req: Request, res: Response) => {
   // Remove session and transaction
   try {
     const { name, gender, email, otp } = req.body;
-    
+
     // Validate all fields
     if (!name || !gender || !email || !otp) {
-      return res.status(400).json({ 
+      return res.status(400).json({
         success: false,
-        error: "All fields are required: name, gender, email, otp" 
+        error: "All fields are required: name, gender, email, otp",
       });
     }
 
     // Validate gender
-    const validGenders = ['male', 'female', 'other'];
+    const validGenders = ["male", "female", "other"];
     if (!validGenders.includes(gender.toLowerCase())) {
       return res.status(400).json({
         success: false,
-        error: "Gender must be male, female, or other"
+        error: "Gender must be male, female, or other",
       });
     }
 
@@ -111,40 +111,40 @@ export const createUser = async (req: Request, res: Response) => {
     if (!emailRegex.test(email)) {
       return res.status(400).json({
         success: false,
-        error: "Invalid email format"
+        error: "Invalid email format",
       });
     }
 
     // Verify OTP
-    const otpRecord = await Otp.findOne({ email, purpose: 'register' });
-    
+    const otpRecord = await Otp.findOne({ email, purpose: "register" });
+
     if (!otpRecord) {
-      return res.status(400).json({ 
+      return res.status(400).json({
         success: false,
-        error: "No OTP found for this email. Please request a new OTP." 
+        error: "No OTP found for this email. Please request a new OTP.",
       });
     }
 
     if (otpRecord.otp !== otp) {
-      return res.status(401).json({ 
+      return res.status(401).json({
         success: false,
-        error: "Invalid OTP" 
+        error: "Invalid OTP",
       });
     }
 
     if (otpRecord.expiresAt < new Date()) {
-      return res.status(401).json({ 
+      return res.status(401).json({
         success: false,
-        error: "OTP has expired. Please request a new OTP." 
+        error: "OTP has expired. Please request a new OTP.",
       });
     }
 
     // Check if user already exists
     const existingUser = await Client.findOne({ email });
     if (existingUser) {
-      return res.status(409).json({ 
+      return res.status(409).json({
         success: false,
-        error: "User already exists. Please login instead." 
+        error: "User already exists. Please login instead.",
       });
     }
 
@@ -157,21 +157,17 @@ export const createUser = async (req: Request, res: Response) => {
       profileCompleted: false,
       profile: {
         verified: false,
-        skills: []
-      }
+        skills: [],
+      },
     });
 
     await user.save();
-    
+
     // Delete used OTP
     await Otp.deleteOne({ email });
-    
+
     // Generate token
-    const token = generateToken(
-      user._id.toString(),
-      "client",
-      user.email
-    );
+    const token = generateToken(user._id.toString(), "client", user.email);
 
     // Set cookie
     res.cookie("token", token, {
@@ -180,7 +176,7 @@ export const createUser = async (req: Request, res: Response) => {
       sameSite: "strict",
       maxAge: 7 * 24 * 60 * 60 * 1000, // 7 days
     });
-    
+
     return res.status(201).json({
       success: true,
       message: "Registration successful",
@@ -193,33 +189,33 @@ export const createUser = async (req: Request, res: Response) => {
           role: user.role,
           profileCompleted: user.profileCompleted,
           profile: user.profile || {},
-          createdAt: user.createdAt
+          createdAt: user.createdAt,
         },
-        token
-      }
+        token,
+      },
     });
   } catch (error) {
     console.error("Registration Error:", error);
-    
+
     if (error instanceof mongoose.Error.ValidationError) {
       return res.status(400).json({
         success: false,
         error: "Validation failed",
-        details: error.errors
+        details: error.errors,
       });
     }
-    
+
     // Handle duplicate email error
     if (error.code === 11000) {
       return res.status(409).json({
         success: false,
-        error: "Email already exists. Please use a different email."
+        error: "Email already exists. Please use a different email.",
       });
     }
-    
-    return res.status(500).json({ 
+
+    return res.status(500).json({
       success: false,
-      error: "Registration failed. Please try again." 
+      error: "Registration failed. Please try again.",
     });
   }
 };
@@ -228,56 +224,52 @@ export const createUser = async (req: Request, res: Response) => {
 export const loginUser = async (req: Request, res: Response) => {
   try {
     const { email, otp } = req.body;
-    
+
     if (!email || !otp) {
-      return res.status(400).json({ 
+      return res.status(400).json({
         success: false,
-        error: "Email and OTP are required" 
+        error: "Email and OTP are required",
       });
     }
 
     // Find user
     const user = await Client.findOne({ email });
     if (!user) {
-      return res.status(404).json({ 
+      return res.status(404).json({
         success: false,
-        error: "User not found. Please register first." 
+        error: "User not found. Please register first.",
       });
     }
 
     // Verify OTP
-    const otpRecord = await Otp.findOne({ email, purpose: 'login' });
-    
+    const otpRecord = await Otp.findOne({ email, purpose: "login" });
+
     if (!otpRecord) {
-      return res.status(400).json({ 
+      return res.status(400).json({
         success: false,
-        error: "No OTP found. Please request a new OTP." 
+        error: "No OTP found. Please request a new OTP.",
       });
     }
 
     if (otpRecord.otp !== otp) {
-      return res.status(401).json({ 
+      return res.status(401).json({
         success: false,
-        error: "Invalid OTP" 
+        error: "Invalid OTP",
       });
     }
 
     if (otpRecord.expiresAt < new Date()) {
-      return res.status(401).json({ 
+      return res.status(401).json({
         success: false,
-        error: "OTP has expired. Please request a new OTP." 
+        error: "OTP has expired. Please request a new OTP.",
       });
     }
 
     // Delete used OTP
     await Otp.deleteOne({ email });
-    
+
     // Generate token
-    const token = generateToken(
-      user._id.toString(),
-      "client",
-      user.email
-    );
+    const token = generateToken(user._id.toString(), "client", user.email);
 
     // Set cookie
     res.cookie("token", token, {
@@ -286,7 +278,7 @@ export const loginUser = async (req: Request, res: Response) => {
       sameSite: "strict",
       maxAge: 7 * 24 * 60 * 60 * 1000,
     });
-    
+
     return res.status(200).json({
       success: true,
       message: "Login successful",
@@ -298,27 +290,26 @@ export const loginUser = async (req: Request, res: Response) => {
           gender: user.gender,
           role: user.role,
           profileCompleted: user.profileCompleted,
-          profile: user.profile || {}
+          profile: user.profile || {},
         },
-        token
-      }
+        token,
+      },
     });
-  } catch (error) {
-    console.error("Login Error:", error);
-    
-    return res.status(500).json({ 
+  } catch (error: any) {
+    console.log("Error Login", error.message);
+
+    return res.status(500).json({
       success: false,
-      error: "Login failed. Please try again." 
+      error: "Login failed. Please try again.",
     });
   }
 };
-
 // 🚪 Logout user (matches /logout route)
 export const logoutUser = (req: Request, res: Response) => {
   res.clearCookie("token");
-  return res.status(200).json({ 
+  return res.status(200).json({
     success: true,
-    message: "Logged out successfully" 
+    message: "Logged out successfully",
   });
 };
 
@@ -326,41 +317,39 @@ export const logoutUser = (req: Request, res: Response) => {
 export const getUser = async (req: Request, res: Response) => {
   try {
     const { email } = req.query;
-    
+
     if (!email || typeof email !== "string") {
-      return res.status(400).json({ 
+      return res.status(400).json({
         success: false,
-        error: "Email is required" 
+        error: "Email is required",
       });
     }
 
-    const user = await Client.findOne({ email })
-      .select("-__v")
-      .lean();
-      
+    const user = await Client.findOne({ email }).select("-__v").lean();
+
     if (!user) {
-      return res.status(404).json({ 
+      return res.status(404).json({
         success: false,
-        error: "User not found" 
+        error: "User not found",
       });
     }
 
     // Convert _id to id for consistency
     const userResponse = {
       ...user,
-      id: user._id?.toString()
+      id: user._id?.toString(),
     };
     delete userResponse._id;
 
     return res.status(200).json({
       success: true,
-      data: { user: userResponse }
+      data: { user: userResponse },
     });
   } catch (error) {
     console.error("Get User Error:", error);
-    return res.status(500).json({ 
+    return res.status(500).json({
       success: false,
-      error: "Failed to get user" 
+      error: "Failed to get user",
     });
   }
 };
@@ -370,39 +359,39 @@ export const updateUser = async (req: Request, res: Response) => {
   try {
     const userId = req.user?.id;
     const { profile } = req.body;
-    
+
     if (!userId) {
-      return res.status(401).json({ 
+      return res.status(401).json({
         success: false,
-        error: "Unauthorized" 
+        error: "Unauthorized",
       });
     }
 
-    if (!profile || typeof profile !== 'object') {
+    if (!profile || typeof profile !== "object") {
       return res.status(400).json({
         success: false,
-        error: "Profile data is required"
+        error: "Profile data is required",
       });
     }
 
     const updatedUser = await Client.findByIdAndUpdate(
       userId,
-      { 
-        $set: { 
+      {
+        $set: {
           profile: { ...profile },
-          profileCompleted: true 
-        } 
+          profileCompleted: true,
+        },
       },
-      { 
+      {
         new: true,
-        runValidators: true 
+        runValidators: true,
       }
     ).select("-__v");
 
     if (!updatedUser) {
-      return res.status(404).json({ 
+      return res.status(404).json({
         success: false,
-        error: "User not found" 
+        error: "User not found",
       });
     }
 
@@ -414,28 +403,28 @@ export const updateUser = async (req: Request, res: Response) => {
       role: updatedUser.role,
       profileCompleted: updatedUser.profileCompleted,
       profile: updatedUser.profile || {},
-      createdAt: updatedUser.createdAt
+      createdAt: updatedUser.createdAt,
     };
 
     return res.status(200).json({
       success: true,
       message: "Profile updated successfully",
-      data: { user: userResponse }
+      data: { user: userResponse },
     });
   } catch (error) {
     console.error("Update Profile Error:", error);
-    
+
     if (error instanceof mongoose.Error.ValidationError) {
       return res.status(400).json({
         success: false,
         error: "Profile validation failed",
-        details: error.errors
+        details: error.errors,
       });
     }
-    
-    return res.status(500).json({ 
+
+    return res.status(500).json({
       success: false,
-      error: "Profile update failed" 
+      error: "Profile update failed",
     });
   }
 };
@@ -447,23 +436,25 @@ export const getAllUsers = async (req: Request, res: Response) => {
       .select("-__v")
       .sort({ createdAt: -1 })
       .lean();
-      
+
     // Convert all _id to id
-    const usersResponse = users.map(user => ({
-      ...user,
-      id: user._id?.toString()
-    })).map(({ _id, ...rest }) => rest); // Remove _id
+    const usersResponse = users
+      .map((user) => ({
+        ...user,
+        id: user._id?.toString(),
+      }))
+      .map(({ _id, ...rest }) => rest); // Remove _id
 
     return res.status(200).json({
       success: true,
       count: usersResponse.length,
-      data: { users: usersResponse }
+      data: { users: usersResponse },
     });
   } catch (error) {
     console.error("Get All Users Error:", error);
-    return res.status(500).json({ 
+    return res.status(500).json({
       success: false,
-      error: "Failed to retrieve users" 
+      error: "Failed to retrieve users",
     });
   }
 };
@@ -473,11 +464,11 @@ export const getClientApplications = async (req: Request, res: Response) => {
   try {
     const userId = req.user?.id;
     const role = req.user?.role;
-    
+
     if (role !== "client") {
-      return res.status(403).json({ 
+      return res.status(403).json({
         success: false,
-        error: "Access denied. Only clients can view their applications" 
+        error: "Access denied. Only clients can view their applications",
       });
     }
 
@@ -489,13 +480,13 @@ export const getClientApplications = async (req: Request, res: Response) => {
     return res.status(200).json({
       success: true,
       count: applications.length,
-      data: { applications }
+      data: { applications },
     });
   } catch (error) {
     console.error("Get client applications error:", error);
-    return res.status(500).json({ 
+    return res.status(500).json({
       success: false,
-      error: "Failed to fetch job applications" 
+      error: "Failed to fetch job applications",
     });
   }
 };
@@ -504,41 +495,39 @@ export const getClientApplications = async (req: Request, res: Response) => {
 export const getUserById = async (req: Request, res: Response) => {
   try {
     const { id } = req.params;
-    
+
     if (!mongoose.Types.ObjectId.isValid(id)) {
-      return res.status(400).json({ 
+      return res.status(400).json({
         success: false,
-        error: "Invalid user ID" 
+        error: "Invalid user ID",
       });
     }
 
-    const user = await Client.findById(id)
-      .select("-__v")
-      .lean();
+    const user = await Client.findById(id).select("-__v").lean();
 
     if (!user) {
-      return res.status(404).json({ 
+      return res.status(404).json({
         success: false,
-        error: "User not found" 
+        error: "User not found",
       });
     }
 
     // Convert _id to id
     const userResponse = {
       ...user,
-      id: user._id?.toString()
+      id: user._id?.toString(),
     };
     delete userResponse._id;
 
     return res.status(200).json({
       success: true,
-      data: { user: userResponse }
+      data: { user: userResponse },
     });
   } catch (error) {
     console.error("Get User By ID Error:", error);
-    return res.status(500).json({ 
+    return res.status(500).json({
       success: false,
-      error: "Failed to retrieve user" 
+      error: "Failed to retrieve user",
     });
   }
 };
@@ -548,24 +537,24 @@ export const getUserById = async (req: Request, res: Response) => {
 export const getProfile = async (req: Request, res: Response) => {
   try {
     const userId = req.user?.id;
-    
+
     console.log("🔍 getProfile - User ID from token:", userId);
     console.log("🔍 Full user object from req.user:", req.user);
-    
+
     if (!userId) {
       console.log("❌ No user ID in token");
-      return res.status(401).json({ 
+      return res.status(401).json({
         success: false,
-        error: "Unauthorized" 
+        error: "Unauthorized",
       });
     }
 
     // Check if userId is a valid MongoDB ObjectId
     if (!mongoose.Types.ObjectId.isValid(userId)) {
       console.log("❌ Invalid user ID format:", userId);
-      return res.status(400).json({ 
+      return res.status(400).json({
         success: false,
-        error: "Invalid user ID format" 
+        error: "Invalid user ID format",
       });
     }
 
@@ -576,28 +565,31 @@ export const getProfile = async (req: Request, res: Response) => {
       .lean();
 
     console.log("🔍 User found in DB:", user ? "Yes" : "No");
-    
+
     if (!user) {
       console.log("❌ User not found in database for ID:", userId);
-      
+
       // Debug: List all users in database
       const allUsers = await Client.find({}).select("_id name email").lean();
-      console.log("📊 All users in database:", allUsers.map(u => ({
-        id: u._id.toString(),
-        name: u.name,
-        email: u.email
-      })));
-      
-      return res.status(404).json({ 
+      console.log(
+        "📊 All users in database:",
+        allUsers.map((u) => ({
+          id: u._id.toString(),
+          name: u.name,
+          email: u.email,
+        }))
+      );
+
+      return res.status(404).json({
         success: false,
-        error: "User not found" 
+        error: "User not found",
       });
     }
 
     console.log("✅ User found:", {
       id: user._id?.toString(),
       name: user.name,
-      email: user.email
+      email: user.email,
     });
 
     // Prepare user data for response
@@ -609,7 +601,7 @@ export const getProfile = async (req: Request, res: Response) => {
       role: "client",
       profileCompleted: user.profileCompleted || false,
       profile: user.profile || {},
-      createdAt: user.createdAt
+      createdAt: user.createdAt,
     };
 
     console.log("✅ Sending user response");
@@ -618,14 +610,14 @@ export const getProfile = async (req: Request, res: Response) => {
       success: true,
       message: "Profile retrieved successfully",
       data: {
-        user: userResponse
-      }
+        user: userResponse,
+      },
     });
   } catch (error) {
     console.error("❌ Error fetching profile:", error);
-    return res.status(500).json({ 
+    return res.status(500).json({
       success: false,
-      error: "Failed to fetch profile" 
+      error: "Failed to fetch profile",
     });
   }
 };
@@ -634,34 +626,34 @@ export const getProfile = async (req: Request, res: Response) => {
 export const verifyOtp = async (req: Request, res: Response) => {
   try {
     const { email, otp } = req.body;
-    
+
     if (!email || !otp) {
       return res.status(400).json({
         success: false,
-        error: "Email and OTP are required"
+        error: "Email and OTP are required",
       });
     }
 
     const otpRecord = await Otp.findOne({ email });
-    
+
     if (!otpRecord) {
       return res.status(400).json({
         success: false,
-        error: "No OTP found for this email"
+        error: "No OTP found for this email",
       });
     }
 
     if (otpRecord.otp !== otp) {
       return res.status(401).json({
         success: false,
-        error: "Invalid OTP"
+        error: "Invalid OTP",
       });
     }
 
     if (otpRecord.expiresAt < new Date()) {
       return res.status(401).json({
         success: false,
-        error: "OTP has expired"
+        error: "OTP has expired",
       });
     }
 
@@ -671,14 +663,14 @@ export const verifyOtp = async (req: Request, res: Response) => {
       data: {
         email,
         purpose: otpRecord.purpose,
-        expiresAt: otpRecord.expiresAt
-      }
+        expiresAt: otpRecord.expiresAt,
+      },
     });
   } catch (error) {
     console.error("Verify OTP Error:", error);
     return res.status(500).json({
       success: false,
-      error: "Failed to verify OTP"
+      error: "Failed to verify OTP",
     });
   }
 };
