@@ -90,13 +90,13 @@ const JWT_SECRET = process.env.JWT_SECRET
   ? process.env.JWT_SECRET.trim()
   : "your_super_secret_jwt_key_change_in_production_32_chars_min";
 
-// Ensure JWT_EXPIRY is always a string (not number or StringValue)
-const JWT_EXPIRY: string = process.env.JWT_EXPIRY || "7d"; // Explicitly type as string
+// Use string for expiresIn as jwt.SignOptions expects string | number
+const JWT_EXPIRES_IN = "7d"; // Hardcode as string to avoid issues
 
 export interface TokenPayload {
   id: string;
   role: string;
-  email: string; // Required, not optional
+  email: string;
 }
 
 export const generateToken = (
@@ -123,11 +123,9 @@ export const generateToken = (
     email,
   };
 
-  // Add iss and aud for better security
+  // Use simple options without issuer/audience to avoid type issues
   const options: jwt.SignOptions = {
-    expiresIn: JWT_EXPIRY, // This should be a string
-    issuer: "your-app-name",
-    audience: "your-app-client",
+    expiresIn: JWT_EXPIRES_IN, // This is definitely a string
   };
 
   return jwt.sign(payload, JWT_SECRET, options);
@@ -140,17 +138,11 @@ export const verifyToken = (token: string): TokenPayload | null => {
       return null;
     }
 
-    const options: jwt.VerifyOptions = {
-      issuer: "your-app-name",
-      audience: "your-app-client",
-    };
-
-    const decoded = jwt.verify(token, JWT_SECRET, options) as TokenPayload & {
+    const decoded = jwt.verify(token, JWT_SECRET) as TokenPayload & {
       iat: number;
       exp: number;
     };
 
-    // Return only the payload
     return {
       id: decoded.id,
       role: decoded.role,
