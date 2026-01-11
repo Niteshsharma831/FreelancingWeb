@@ -8,13 +8,22 @@ import { generateToken } from "../utils/jwt";
 import jwt from "jsonwebtoken";
 
 // Helper to safely convert Mongo ObjectId to string
-const getIdString = (id: any) => (id as mongoose.Types.ObjectId).toString();
+const getIdString = (id: any): string => {
+  if (id instanceof mongoose.Types.ObjectId) {
+    return id.toString();
+  }
+  return String(id);
+};
 
-// Send OTP - FIXED with proper error handling
-export const sendOtp = async (req: Request, res: Response) => {
+// Send OTP
+export const sendOtp = async (req: Request, res: Response): Promise<void> => {
   try {
     const { email } = req.body;
-    if (!email) return res.status(400).json({ error: "Email required" });
+
+    if (!email) {
+      res.status(400).json({ error: "Email required" });
+      return;
+    }
 
     const otp = generateOtp();
     const expiresAt = otpExpiry();
@@ -27,34 +36,46 @@ export const sendOtp = async (req: Request, res: Response) => {
 
     await sendOtpMail(email, otp);
     res.status(200).json({ message: "OTP sent successfully" });
-  } catch (error: any) {
+  } catch (error: unknown) {
     console.error("Send OTP error:", error);
-    res.status(500).json({ error: "Failed to send OTP" });
+    if (error instanceof Error) {
+      res.status(500).json({ error: error.message });
+    } else {
+      res.status(500).json({ error: "Failed to send OTP" });
+    }
   }
 };
 
-// Register Freelancer - FIXED with better validation
-export const registerFreelancer = async (req: Request, res: Response) => {
+// Register Freelancer
+export const registerFreelancer = async (
+  req: Request,
+  res: Response
+): Promise<void> => {
   try {
     const { name, gender, email, otp } = req.body;
 
     // Validate required fields
     if (!name || !gender || !email || !otp) {
-      return res.status(400).json({ error: "All fields are required" });
+      res.status(400).json({ error: "All fields are required" });
+      return;
     }
 
     const existing = await Freelancer.findOne({ email });
-    if (existing)
-      return res.status(409).json({ error: "Email already registered" });
+    if (existing) {
+      res.status(409).json({ error: "Email already registered" });
+      return;
+    }
 
     const otpRecord = await Otp.findOne({ email });
     if (!otpRecord || otpRecord.otp !== otp) {
-      return res.status(401).json({ error: "Invalid OTP" });
+      res.status(401).json({ error: "Invalid OTP" });
+      return;
     }
 
     if (otpRecord.expiresAt < new Date()) {
       await Otp.deleteOne({ email });
-      return res.status(401).json({ error: "OTP expired" });
+      res.status(401).json({ error: "OTP expired" });
+      return;
     }
 
     const user = new Freelancer({
@@ -71,7 +92,7 @@ export const registerFreelancer = async (req: Request, res: Response) => {
     const userId = getIdString(user._id);
     const token = generateToken(userId, user.role, user.email);
 
-    // FIXED: Correct cookie settings for production
+    // Correct cookie settings for production
     const isProduction = process.env.NODE_ENV === "production";
 
     res.cookie("token", token, {
@@ -82,7 +103,7 @@ export const registerFreelancer = async (req: Request, res: Response) => {
       path: "/",
     });
 
-    return res.status(201).json({
+    res.status(201).json({
       success: true,
       message: "Registration successful",
       user: {
@@ -93,37 +114,54 @@ export const registerFreelancer = async (req: Request, res: Response) => {
         profileCompleted: user.profileCompleted,
       },
     });
-  } catch (error: any) {
+  } catch (error: unknown) {
     console.error("Registration error:", error);
 
-    if (error.code === 11000) {
-      return res.status(409).json({ error: "Email already exists" });
+    if (error instanceof Error && "code" in error) {
+      const err = error as any;
+      if (err.code === 11000) {
+        res.status(409).json({ error: "Email already exists" });
+        return;
+      }
     }
 
-    res.status(500).json({ error: "Registration failed" });
+    if (error instanceof Error) {
+      res.status(500).json({ error: error.message });
+    } else {
+      res.status(500).json({ error: "Registration failed" });
+    }
   }
 };
 
-// Login - FIXED with correct cookie settings
-export const loginFreelancer = async (req: Request, res: Response) => {
+// Login
+export const loginFreelancer = async (
+  req: Request,
+  res: Response
+): Promise<void> => {
   try {
     const { email, otp } = req.body;
 
     if (!email || !otp) {
-      return res.status(400).json({ error: "Email and OTP required" });
+      res.status(400).json({ error: "Email and OTP required" });
+      return;
     }
 
     const user = await Freelancer.findOne({ email });
-    if (!user) return res.status(404).json({ error: "User not registered" });
+    if (!user) {
+      res.status(404).json({ error: "User not registered" });
+      return;
+    }
 
     const otpRecord = await Otp.findOne({ email });
     if (!otpRecord || otpRecord.otp !== otp) {
-      return res.status(401).json({ error: "Invalid OTP" });
+      res.status(401).json({ error: "Invalid OTP" });
+      return;
     }
 
     if (otpRecord.expiresAt < new Date()) {
       await Otp.deleteOne({ email });
-      return res.status(401).json({ error: "OTP expired" });
+      res.status(401).json({ error: "OTP expired" });
+      return;
     }
 
     await Otp.deleteOne({ email });
@@ -131,7 +169,7 @@ export const loginFreelancer = async (req: Request, res: Response) => {
     const userId = getIdString(user._id);
     const token = generateToken(userId, user.role, user.email);
 
-    // FIXED: Consistent cookie settings
+    // Consistent cookie settings
     const isProduction = process.env.NODE_ENV === "production";
 
     res.cookie("token", token, {
@@ -142,7 +180,7 @@ export const loginFreelancer = async (req: Request, res: Response) => {
       path: "/",
     });
 
-    return res.status(200).json({
+    res.status(200).json({
       success: true,
       message: "Login successful",
       user: {
@@ -153,14 +191,18 @@ export const loginFreelancer = async (req: Request, res: Response) => {
         profileCompleted: user.profileCompleted,
       },
     });
-  } catch (error: any) {
+  } catch (error: unknown) {
     console.error("Login error:", error);
-    res.status(500).json({ error: "Login failed" });
+    if (error instanceof Error) {
+      res.status(500).json({ error: error.message });
+    } else {
+      res.status(500).json({ error: "Login failed" });
+    }
   }
 };
 
-// Logout - FIXED with correct cookie clearing
-export const logoutFreelancer = async (req: Request, res: Response) => {
+// Logout
+export const logoutFreelancer = (req: Request, res: Response): void => {
   const isProduction = process.env.NODE_ENV === "production";
 
   res.clearCookie("token", {
@@ -173,21 +215,22 @@ export const logoutFreelancer = async (req: Request, res: Response) => {
   res.status(200).json({ success: true, message: "Logged out successfully" });
 };
 
-// Protect middleware - FIXED to match token structure
+// Protect middleware
 export const protectFreelancer = (
   req: Request,
   res: Response,
   next: NextFunction
-) => {
+): void => {
   try {
     const token = req.cookies.token || req.headers.authorization?.split(" ")[1];
     const JWT_SECRET = process.env.JWT_SECRET || "your_jwt_secret";
 
     if (!token) {
-      return res.status(401).json({ error: "Authentication required" });
+      res.status(401).json({ error: "Authentication required" });
+      return;
     }
 
-    // FIXED: The token should be verified with proper structure
+    // Verify token with proper structure
     const decoded = jwt.verify(token, JWT_SECRET) as {
       userId: string;
       role: string;
@@ -196,49 +239,61 @@ export const protectFreelancer = (
       exp: number;
     };
 
-    // FIXED: Check if token is expired
+    // Check if token is expired
     if (Date.now() >= decoded.exp * 1000) {
-      return res.status(401).json({ error: "Token expired" });
+      res.status(401).json({ error: "Token expired" });
+      return;
     }
 
     if (decoded.role !== "freelancer") {
-      return res
-        .status(403)
-        .json({ error: "Access denied for non-freelancer" });
+      res.status(403).json({ error: "Access denied for non-freelancer" });
+      return;
     }
 
-    // FIXED: Attach user info to request
+    // Attach user info to request - This matches your Express type definition
     req.user = {
       id: decoded.userId,
-      role: decoded.role as "freelancer",
+      role: "freelancer",
       email: decoded.email,
     };
 
     next();
-  } catch (err: any) {
-    if (err.name === "JsonWebTokenError") {
-      return res.status(403).json({ error: "Invalid token" });
+  } catch (err: unknown) {
+    if (err instanceof Error) {
+      if (err.name === "JsonWebTokenError") {
+        res.status(403).json({ error: "Invalid token" });
+        return;
+      }
+      if (err.name === "TokenExpiredError") {
+        res.status(401).json({ error: "Token expired" });
+        return;
+      }
+      console.error("Auth middleware error:", err);
+      res.status(500).json({ error: err.message });
+      return;
     }
-    if (err.name === "TokenExpiredError") {
-      return res.status(401).json({ error: "Token expired" });
-    }
-    console.error("Auth middleware error:", err);
+    console.error("Unknown auth middleware error:", err);
     res.status(500).json({ error: "Authentication failed" });
   }
 };
 
-// Update Profile - FIXED with proper validation
-export const updateFreelancer = async (req: Request, res: Response) => {
+// Update Profile
+export const updateFreelancer = async (
+  req: Request,
+  res: Response
+): Promise<void> => {
   try {
     const { profile } = req.body;
     const userId = req.user?.id;
 
     if (!userId) {
-      return res.status(401).json({ error: "Unauthorized" });
+      res.status(401).json({ error: "Unauthorized" });
+      return;
     }
 
     if (!profile || typeof profile !== "object") {
-      return res.status(400).json({ error: "Profile data required" });
+      res.status(400).json({ error: "Profile data required" });
+      return;
     }
 
     const updated = await Freelancer.findByIdAndUpdate(
@@ -256,7 +311,8 @@ export const updateFreelancer = async (req: Request, res: Response) => {
     );
 
     if (!updated) {
-      return res.status(404).json({ error: "Freelancer not found" });
+      res.status(404).json({ error: "Freelancer not found" });
+      return;
     }
 
     res.status(200).json({
@@ -264,75 +320,144 @@ export const updateFreelancer = async (req: Request, res: Response) => {
       message: "Profile updated",
       user: updated,
     });
-  } catch (error: any) {
+  } catch (error: unknown) {
     console.error("Update error:", error);
 
-    if (error.name === "ValidationError") {
-      return res.status(400).json({ error: "Invalid profile data" });
+    if (error instanceof Error) {
+      if (error.name === "ValidationError") {
+        res.status(400).json({ error: "Invalid profile data" });
+        return;
+      }
+      res.status(500).json({ error: error.message });
+      return;
     }
 
     res.status(500).json({ error: "Failed to update profile" });
   }
 };
 
-// Get a single freelancer - FIXED
-export const getFreelancer = async (req: Request, res: Response) => {
+// Get a single freelancer
+export const getFreelancer = async (
+  req: Request,
+  res: Response
+): Promise<void> => {
   try {
     const { email } = req.query;
     const userId = req.user?.id;
 
     let freelancer;
 
-    if (email) {
+    if (email && typeof email === "string") {
       freelancer = await Freelancer.findOne({ email });
     } else if (userId) {
       freelancer = await Freelancer.findById(userId);
     } else {
-      return res
-        .status(400)
-        .json({ error: "Email or authentication required" });
+      res.status(400).json({ error: "Email or authentication required" });
+      return;
     }
 
     if (!freelancer) {
-      return res.status(404).json({ error: "Freelancer not found" });
+      res.status(404).json({ error: "Freelancer not found" });
+      return;
     }
 
     res.status(200).json({ success: true, user: freelancer });
-  } catch (error: any) {
+  } catch (error: unknown) {
     console.error("Get freelancer error:", error);
-    res.status(500).json({ error: "Failed to fetch freelancer" });
+    if (error instanceof Error) {
+      res.status(500).json({ error: error.message });
+    } else {
+      res.status(500).json({ error: "Failed to fetch freelancer" });
+    }
   }
 };
 
-// Get all freelancers - FIXED
-export const getAllFreelancers = async (req: Request, res: Response) => {
+// Get all freelancers
+export const getAllFreelancers = async (
+  req: Request,
+  res: Response
+): Promise<void> => {
   try {
     const freelancers = await Freelancer.find().select("-__v");
     res.status(200).json({ success: true, users: freelancers });
-  } catch (error: any) {
+  } catch (error: unknown) {
     console.error("Get all freelancers error:", error);
-    res.status(500).json({ error: "Failed to fetch freelancers" });
+    if (error instanceof Error) {
+      res.status(500).json({ error: error.message });
+    } else {
+      res.status(500).json({ error: "Failed to fetch freelancers" });
+    }
   }
 };
 
-// Get freelancer profile - FIXED
-export const getFreelancerProfile = async (req: Request, res: Response) => {
+// Get freelancer profile
+export const getFreelancerProfile = async (
+  req: Request,
+  res: Response
+): Promise<void> => {
   try {
     const freelancerId = req.user?.id;
 
     if (!freelancerId) {
-      return res.status(401).json({ error: "Unauthorized" });
+      res.status(401).json({ error: "Unauthorized" });
+      return;
     }
 
     const freelancer = await Freelancer.findById(freelancerId).select("-__v");
 
     if (!freelancer) {
-      return res.status(404).json({ error: "Freelancer not found" });
+      res.status(404).json({ error: "Freelancer not found" });
+      return;
     }
 
     res.status(200).json({ success: true, user: freelancer });
-  } catch (error: any) {
+  } catch (error: unknown) {
     console.error("Get profile error:", error);
-    res.status(500).json({ error: "Failed to fetch profile" });
+    if (error instanceof Error) {
+      res.status(500).json({ error: error.message });
+    } else {
+      res.status(500).json({ error: "Failed to fetch profile" });
+    }
+  }
+};
+
+// Additional utility function: Verify freelancer
+export const verifyFreelancer = async (
+  req: Request,
+  res: Response
+): Promise<void> => {
+  try {
+    const freelancerId = req.user?.id;
+
+    if (!freelancerId) {
+      res.status(401).json({ error: "Unauthorized" });
+      return;
+    }
+
+    const freelancer = await Freelancer.findById(freelancerId);
+
+    if (!freelancer) {
+      res.status(404).json({ error: "Freelancer not found" });
+      return;
+    }
+
+    res.status(200).json({
+      success: true,
+      isAuthenticated: true,
+      user: {
+        _id: freelancer._id,
+        name: freelancer.name,
+        email: freelancer.email,
+        role: freelancer.role,
+        profileCompleted: freelancer.profileCompleted,
+      },
+    });
+  } catch (error: unknown) {
+    console.error("Verify freelancer error:", error);
+    if (error instanceof Error) {
+      res.status(500).json({ error: error.message });
+    } else {
+      res.status(500).json({ error: "Verification failed" });
+    }
   }
 };
