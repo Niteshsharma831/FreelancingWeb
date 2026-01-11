@@ -27,7 +27,7 @@ export const sendOtp = async (req: Request, res: Response) => {
 
     await sendOtpMail(email, otp);
     res.status(200).json({ message: "OTP sent successfully" });
-  } catch (error) {
+  } catch (error: any) {
     console.error("Send OTP error:", error);
     res.status(500).json({ error: "Failed to send OTP" });
   }
@@ -153,7 +153,7 @@ export const loginFreelancer = async (req: Request, res: Response) => {
         profileCompleted: user.profileCompleted,
       },
     });
-  } catch (error) {
+  } catch (error: any) {
     console.error("Login error:", error);
     res.status(500).json({ error: "Login failed" });
   }
@@ -298,7 +298,7 @@ export const getFreelancer = async (req: Request, res: Response) => {
     }
 
     res.status(200).json({ success: true, user: freelancer });
-  } catch (error) {
+  } catch (error: any) {
     console.error("Get freelancer error:", error);
     res.status(500).json({ error: "Failed to fetch freelancer" });
   }
@@ -309,7 +309,7 @@ export const getAllFreelancers = async (req: Request, res: Response) => {
   try {
     const freelancers = await Freelancer.find().select("-__v");
     res.status(200).json({ success: true, users: freelancers });
-  } catch (error) {
+  } catch (error: any) {
     console.error("Get all freelancers error:", error);
     res.status(500).json({ error: "Failed to fetch freelancers" });
   }
@@ -318,7 +318,7 @@ export const getAllFreelancers = async (req: Request, res: Response) => {
 // Get freelancer profile - FIXED
 export const getFreelancerProfile = async (req: Request, res: Response) => {
   try {
-    const freelancerId = (req as any).user?.id;
+    const freelancerId = req.user?.id;
 
     if (!freelancerId) {
       return res.status(401).json({ error: "Unauthorized" });
@@ -331,7 +331,7 @@ export const getFreelancerProfile = async (req: Request, res: Response) => {
     }
 
     res.status(200).json({ success: true, user: freelancer });
-  } catch (error) {
+  } catch (error: any) {
     console.error("Get profile error:", error);
     res.status(500).json({ error: "Failed to fetch profile" });
   }
