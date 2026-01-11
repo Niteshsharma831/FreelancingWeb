@@ -20,11 +20,11 @@ export const sendOtp = async (req: Request, res: Response) => {
     const expiresAt = otpExpiry();
 
     await Otp.findOneAndUpdate(
-      { email }, 
-      { otp, expiresAt }, 
+      { email },
+      { otp, expiresAt },
       { upsert: true, new: true }
     );
-    
+
     await sendOtpMail(email, otp);
     res.status(200).json({ message: "OTP sent successfully" });
   } catch (error) {
@@ -44,7 +44,8 @@ export const registerFreelancer = async (req: Request, res: Response) => {
     }
 
     const existing = await Freelancer.findOne({ email });
-    if (existing) return res.status(409).json({ error: "Email already registered" });
+    if (existing)
+      return res.status(409).json({ error: "Email already registered" });
 
     const otpRecord = await Otp.findOne({ email });
     if (!otpRecord || otpRecord.otp !== otp) {
@@ -72,7 +73,7 @@ export const registerFreelancer = async (req: Request, res: Response) => {
 
     // FIXED: Correct cookie settings for production
     const isProduction = process.env.NODE_ENV === "production";
-    
+
     res.cookie("token", token, {
       httpOnly: true,
       secure: isProduction,
@@ -81,24 +82,24 @@ export const registerFreelancer = async (req: Request, res: Response) => {
       path: "/",
     });
 
-    return res.status(201).json({ 
+    return res.status(201).json({
       success: true,
-      message: "Registration successful", 
+      message: "Registration successful",
       user: {
         _id: user._id,
         name: user.name,
         email: user.email,
         role: user.role,
-        profileCompleted: user.profileCompleted
-      }
+        profileCompleted: user.profileCompleted,
+      },
     });
   } catch (error: any) {
     console.error("Registration error:", error);
-    
+
     if (error.code === 11000) {
       return res.status(409).json({ error: "Email already exists" });
     }
-    
+
     res.status(500).json({ error: "Registration failed" });
   }
 };
@@ -132,7 +133,7 @@ export const loginFreelancer = async (req: Request, res: Response) => {
 
     // FIXED: Consistent cookie settings
     const isProduction = process.env.NODE_ENV === "production";
-    
+
     res.cookie("token", token, {
       httpOnly: true,
       secure: isProduction,
@@ -141,16 +142,16 @@ export const loginFreelancer = async (req: Request, res: Response) => {
       path: "/",
     });
 
-    return res.status(200).json({ 
+    return res.status(200).json({
       success: true,
-      message: "Login successful", 
+      message: "Login successful",
       user: {
         _id: user._id,
         name: user.name,
         email: user.email,
         role: user.role,
-        profileCompleted: user.profileCompleted
-      }
+        profileCompleted: user.profileCompleted,
+      },
     });
   } catch (error) {
     console.error("Login error:", error);
@@ -161,19 +162,23 @@ export const loginFreelancer = async (req: Request, res: Response) => {
 // Logout - FIXED with correct cookie clearing
 export const logoutFreelancer = async (req: Request, res: Response) => {
   const isProduction = process.env.NODE_ENV === "production";
-  
+
   res.clearCookie("token", {
     httpOnly: true,
     secure: isProduction,
     sameSite: isProduction ? "none" : "lax",
     path: "/",
   });
-  
+
   res.status(200).json({ success: true, message: "Logged out successfully" });
 };
 
 // Protect middleware - FIXED to match token structure
-export const protectFreelancer = (req: Request, res: Response, next: NextFunction) => {
+export const protectFreelancer = (
+  req: Request,
+  res: Response,
+  next: NextFunction
+) => {
   try {
     const token = req.cookies.token || req.headers.authorization?.split(" ")[1];
     const JWT_SECRET = process.env.JWT_SECRET || "your_jwt_secret";
@@ -183,8 +188,8 @@ export const protectFreelancer = (req: Request, res: Response, next: NextFunctio
     }
 
     // FIXED: The token should be verified with proper structure
-    const decoded = jwt.verify(token, JWT_SECRET) as { 
-      userId: string; 
+    const decoded = jwt.verify(token, JWT_SECRET) as {
+      userId: string;
       role: string;
       email: string;
       iat: number;
@@ -197,22 +202,24 @@ export const protectFreelancer = (req: Request, res: Response, next: NextFunctio
     }
 
     if (decoded.role !== "freelancer") {
-      return res.status(403).json({ error: "Access denied for non-freelancer" });
+      return res
+        .status(403)
+        .json({ error: "Access denied for non-freelancer" });
     }
 
     // FIXED: Attach user info to request
-    (req as any).user = { 
-      id: decoded.userId, 
-      role: decoded.role,
-      email: decoded.email 
+    req.user = {
+      id: decoded.userId,
+      role: decoded.role as "freelancer",
+      email: decoded.email,
     };
-    
+
     next();
   } catch (err: any) {
-    if (err.name === 'JsonWebTokenError') {
+    if (err.name === "JsonWebTokenError") {
       return res.status(403).json({ error: "Invalid token" });
     }
-    if (err.name === 'TokenExpiredError') {
+    if (err.name === "TokenExpiredError") {
       return res.status(401).json({ error: "Token expired" });
     }
     console.error("Auth middleware error:", err);
@@ -224,26 +231,26 @@ export const protectFreelancer = (req: Request, res: Response, next: NextFunctio
 export const updateFreelancer = async (req: Request, res: Response) => {
   try {
     const { profile } = req.body;
-    const userId = (req as any).user?.id;
+    const userId = req.user?.id;
 
     if (!userId) {
       return res.status(401).json({ error: "Unauthorized" });
     }
 
-    if (!profile || typeof profile !== 'object') {
+    if (!profile || typeof profile !== "object") {
       return res.status(400).json({ error: "Profile data required" });
     }
 
     const updated = await Freelancer.findByIdAndUpdate(
       userId,
-      { 
-        $set: { 
-          profile: { 
+      {
+        $set: {
+          profile: {
             ...profile,
-            updatedAt: new Date() 
-          }, 
-          profileCompleted: true 
-        } 
+            updatedAt: new Date(),
+          },
+          profileCompleted: true,
+        },
       },
       { new: true, runValidators: true }
     );
@@ -252,18 +259,18 @@ export const updateFreelancer = async (req: Request, res: Response) => {
       return res.status(404).json({ error: "Freelancer not found" });
     }
 
-    res.status(200).json({ 
+    res.status(200).json({
       success: true,
-      message: "Profile updated", 
-      user: updated 
+      message: "Profile updated",
+      user: updated,
     });
   } catch (error: any) {
     console.error("Update error:", error);
-    
-    if (error.name === 'ValidationError') {
+
+    if (error.name === "ValidationError") {
       return res.status(400).json({ error: "Invalid profile data" });
     }
-    
+
     res.status(500).json({ error: "Failed to update profile" });
   }
 };
@@ -272,16 +279,18 @@ export const updateFreelancer = async (req: Request, res: Response) => {
 export const getFreelancer = async (req: Request, res: Response) => {
   try {
     const { email } = req.query;
-    const userId = (req as any).user?.id;
+    const userId = req.user?.id;
 
     let freelancer;
-    
+
     if (email) {
       freelancer = await Freelancer.findOne({ email });
     } else if (userId) {
       freelancer = await Freelancer.findById(userId);
     } else {
-      return res.status(400).json({ error: "Email or authentication required" });
+      return res
+        .status(400)
+        .json({ error: "Email or authentication required" });
     }
 
     if (!freelancer) {
