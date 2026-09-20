@@ -27,7 +27,7 @@ api.interceptors.request.use(
     ];
 
     const isPublicEndpoint = publicEndpoints.some((endpoint) =>
-      config.url.includes(endpoint)
+      config.url.includes(endpoint),
     );
 
     // Only add token for private endpoints
@@ -41,7 +41,7 @@ api.interceptors.request.use(
   },
   (error) => {
     return Promise.reject(error);
-  }
+  },
 );
 
 // Response interceptor to handle errors
@@ -55,7 +55,7 @@ api.interceptors.response.use(
       window.location.href = "/login";
     }
     return Promise.reject(error);
-  }
+  },
 );
 
 export default api;
