@@ -153,41 +153,39 @@ const ProfilePage = () => {
 
   const fetchProfile = async () => {
     const token = localStorage.getItem("token");
+
     console.log("🔍 Fetching profile with token:", token ? "Yes" : "No");
+
     if (!token) {
       setError("No authentication token found. Please login.");
       setLoading(false);
-      setTimeout(() => (window.location.href = "/login"), 2000);
+
+      setTimeout(() => {
+        window.location.href = "/login";
+      }, 2000);
+
       return;
     }
 
     try {
       console.log("📡 Calling: /users/profile");
 
-      // Make direct fetch call to debug
-      const response = await fetch("http://localhost:5000/api/users/profile", {
-        method: "GET",
-        headers: {
-          Authorization: `Bearer ${token}`,
-          "Content-Type": "application/json",
-        },
-      });
+      const res = await api.get("/users/profile");
 
-      console.log("📡 Response status:", response.status);
+      console.log("📥 Full profile response:", res.data);
 
-      if (!response.ok) {
-        throw new Error(`HTTP error! status: ${response.status}`);
+      const userData = res.data.data || res.data;
+
+      console.log("👤 Actual user data:", userData);
+      console.log("👤 Name from backend:", userData?.name);
+
+      if (!userData) {
+        throw new Error("User profile data not found");
       }
 
-      const data = await response.json();
-      console.log("✅ Backend data:", data);
-
-      // Handle the direct response from your backend
-      const userData = data;
-
-      // Set user state with backend data
       setUser({
         ...userData,
+
         profile: userData.profile || {
           skills: [],
           bio: "",
@@ -197,7 +195,6 @@ const ProfilePage = () => {
         },
       });
 
-      // Initialize edit form
       setEditForm({
         name: userData.name || "",
         phone: userData.profile?.phone || "",
@@ -217,11 +214,14 @@ const ProfilePage = () => {
 
       setError("");
     } catch (err) {
-      console.error("❌ Profile fetch error details:", err);
-      console.error("❌ Error response:", err.response);
+      console.error("❌ Profile fetch error:", err);
+      console.error("❌ Server response:", err.response?.data);
 
-      setError(`Failed to load profile: ${err.message}`);
-      toast.error(`Failed to load profile: ${err.message}`);
+      const message =
+        err.response?.data?.error || err.message || "Failed to load profile";
+
+      setError(message);
+      toast.error(message);
     } finally {
       setLoading(false);
     }
@@ -232,6 +232,7 @@ const ProfilePage = () => {
     e.preventDefault();
 
     const token = localStorage.getItem("token");
+
     if (!token || !user) {
       toast.error("Please login first");
       return;
@@ -241,60 +242,103 @@ const ProfilePage = () => {
       setUploading(true);
 
       const updatedProfile = {
-        name: editForm.name,
+        name: editForm.name.trim(),
         profile: {
-          phone: editForm.phone,
-          address: editForm.address,
-          bio: editForm.bio,
+          phone: editForm.phone.trim(),
+          address: editForm.address.trim(),
+          bio: editForm.bio.trim(),
+
           skills: editForm.skills
             .split(",")
             .map((s) => s.trim())
-            .filter((s) => s),
+            .filter(Boolean),
+
           experience: editForm.experience,
+
           hourlyRate: parseFloat(editForm.hourlyRate) || 0,
-          education: editForm.education,
+
+          education: editForm.education.trim(),
+
           languages: editForm.languages
             .split(",")
             .map((l) => l.trim())
-            .filter((l) => l),
-          website: editForm.website,
+            .filter(Boolean),
+
+          website: editForm.website.trim(),
+
           social: {
-            linkedin: editForm.linkedin,
-            github: editForm.github,
-            twitter: editForm.twitter,
+            linkedin: editForm.linkedin.trim(),
+            github: editForm.github.trim(),
+            twitter: editForm.twitter.trim(),
           },
+
           portfolio: {
-            url: editForm.portfolioUrl,
+            url: editForm.portfolioUrl.trim(),
           },
-          // Preserve existing data
+
+          // Preserve existing values
           profilePic: user.profile?.profilePic || "",
           resume: user.profile?.resume || null,
           verified: user.profile?.verified || false,
         },
       };
 
+      console.log("📤 Sending update:", updatedProfile);
+
       const res = await api.put("/users/update", updatedProfile);
 
+      console.log("📥 Update response:", res.data);
+
       if (res.data.success) {
-        // Update local user state
-        const updatedUser = {
+        // Backend normally returns:
+        // { success: true, data: updatedUser }
+
+        const updatedUser = res.data.data || {
           ...user,
-          name: editForm.name,
+          name: updatedProfile.name,
           profile: {
             ...user.profile,
             ...updatedProfile.profile,
           },
         };
 
+        console.log("✅ Updated user:", updatedUser);
+        console.log("✅ Updated name:", updatedUser.name);
+
         setUser(updatedUser);
+
+        // Also update edit form with latest backend data
+        setEditForm({
+          name: updatedUser.name || "",
+          phone: updatedUser.profile?.phone || "",
+          address: updatedUser.profile?.address || "",
+          bio: updatedUser.profile?.bio || "",
+          skills: (updatedUser.profile?.skills || []).join(", "),
+          experience: updatedUser.profile?.experience || "beginner",
+          hourlyRate: updatedUser.profile?.hourlyRate || "",
+          education: updatedUser.profile?.education || "",
+          languages: (updatedUser.profile?.languages || []).join(", "),
+          website: updatedUser.profile?.website || "",
+          linkedin: updatedUser.profile?.social?.linkedin || "",
+          github: updatedUser.profile?.social?.github || "",
+          twitter: updatedUser.profile?.social?.twitter || "",
+          portfolioUrl: updatedUser.profile?.portfolio?.url || "",
+        });
+
         setIsEditing(false);
+
         toast.success("Profile updated successfully!");
 
-        // Refresh profile data
-        fetchProfile();
+        // IMPORTANT:
+        // Don't immediately call fetchProfile() here.
+        // The backend response already contains the updated user.
+      } else {
+        toast.error(res.data.error || "Failed to update profile");
       }
     } catch (err) {
-      console.error("Update error:", err);
+      console.error("❌ Update error:", err);
+      console.error("❌ Server response:", err.response?.data);
+
       toast.error(err.response?.data?.error || "Failed to update profile");
     } finally {
       setUploading(false);
@@ -1323,7 +1367,7 @@ const ProfilePage = () => {
                                       </div>
                                       <FaExternalLinkAlt className="text-gray-400 group-hover:text-blue-600 transition" />
                                     </a>
-                                  )
+                                  ),
                               )}
 
                               {!user?.profile?.social?.linkedin &&
@@ -1368,7 +1412,7 @@ const ProfilePage = () => {
                                   onClick={() =>
                                     window.open(
                                       user.profile.resume.url,
-                                      "_blank"
+                                      "_blank",
                                     )
                                   }
                                   className="px-4 py-2 bg-green-600 text-white rounded-lg hover:bg-green-700 transition flex items-center gap-2"
@@ -1815,11 +1859,11 @@ const ProfilePage = () => {
                               onClick={() => {
                                 if (
                                   window.confirm(
-                                    "Are you sure you want to deactivate your account? You can reactivate within 30 days."
+                                    "Are you sure you want to deactivate your account? You can reactivate within 30 days.",
                                   )
                                 ) {
                                   toast.info(
-                                    "Account deactivation feature coming soon"
+                                    "Account deactivation feature coming soon",
                                   );
                                 }
                               }}
@@ -1835,11 +1879,11 @@ const ProfilePage = () => {
                               onClick={() => {
                                 if (
                                   window.confirm(
-                                    "Are you absolutely sure? This will permanently delete your account and all data."
+                                    "Are you absolutely sure? This will permanently delete your account and all data.",
                                   )
                                 ) {
                                   toast.info(
-                                    "Account deletion feature coming soon"
+                                    "Account deletion feature coming soon",
                                   );
                                 }
                               }}
@@ -2136,7 +2180,7 @@ const ProfilePage = () => {
                     onClick={() => {
                       if (
                         window.confirm(
-                          "Are you sure you want to remove your resume?"
+                          "Are you sure you want to remove your resume?",
                         )
                       ) {
                         toast.info("Resume removal feature coming soon");

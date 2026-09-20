@@ -686,13 +686,13 @@ import { sendOtpMail } from "../utils/mailer";
 import { generateToken, TokenPayload, verifyToken } from "../utils/jwt";
 
 // Type for user in request
-interface AuthRequest extends Request {
+type AuthRequest = Request & {
   user?: {
     id: string;
     role: string;
     email: string;
   };
-}
+};
 
 // In your userController.ts
 export const debugEmail = async (req: Request, res: Response): Promise<void> => {
@@ -1369,11 +1369,44 @@ export const updateUser = async (
       return;
     }
 
+    // Build update object dynamically.
+    // This updates only the fields sent by the frontend
+    // and keeps all other existing profile fields unchanged.
+    const profileUpdates: Record<string, unknown> = {};
+
+    const allowedFields = [
+      "phone",
+      "address",
+      "bio",
+      "skills",
+      "experience",
+      "hourlyRate",
+      "profilePic",
+      "resume",
+      "verified",
+    ];
+
+    for (const field of allowedFields) {
+      if (Object.prototype.hasOwnProperty.call(profile, field)) {
+        profileUpdates[`profile.${field}`] = profile[field];
+      }
+    }
+
+    if (Object.keys(profileUpdates).length === 0) {
+      res.status(400).json({
+        success: false,
+        error: "No valid profile fields provided",
+      });
+      return;
+    }
+
+    // Update only the fields received from frontend.
+    // Existing profile fields will NOT be removed.
     const updatedUser = await Client.findByIdAndUpdate(
       userId,
       {
         $set: {
-          profile: { ...profile },
+          ...profileUpdates,
           profileCompleted: true,
         },
       },
@@ -1405,13 +1438,16 @@ export const updateUser = async (
     res.status(200).json({
       success: true,
       message: "Profile updated successfully",
-      data: { user: userResponse },
+      data: {
+        user: userResponse,
+      },
     });
   } catch (error: unknown) {
     console.error("Update Profile Error:", error);
 
     if (error instanceof mongoose.Error.ValidationError) {
       const validationError = error as mongoose.Error.ValidationError;
+
       res.status(400).json({
         success: false,
         error: "Profile validation failed",
@@ -1424,10 +1460,14 @@ export const updateUser = async (
 
     res.status(500).json({
       success: false,
-      error: error instanceof Error ? error.message : "Profile update failed",
+      error:
+        error instanceof Error
+          ? error.message
+          : "Profile update failed",
     });
   }
 };
+
 
 // 👥 Get all users
 export const getAllUsers = async (
