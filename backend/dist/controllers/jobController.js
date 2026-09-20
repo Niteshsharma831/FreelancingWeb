@@ -1,13 +1,4 @@
 "use strict";
-var __awaiter = (this && this.__awaiter) || function (thisArg, _arguments, P, generator) {
-    function adopt(value) { return value instanceof P ? value : new P(function (resolve) { resolve(value); }); }
-    return new (P || (P = Promise))(function (resolve, reject) {
-        function fulfilled(value) { try { step(generator.next(value)); } catch (e) { reject(e); } }
-        function rejected(value) { try { step(generator["throw"](value)); } catch (e) { reject(e); } }
-        function step(result) { result.done ? resolve(result.value) : adopt(result.value).then(fulfilled, rejected); }
-        step((generator = generator.apply(thisArg, _arguments || [])).next());
-    });
-};
 var __importDefault = (this && this.__importDefault) || function (mod) {
     return (mod && mod.__esModule) ? mod : { "default": mod };
 };
@@ -15,7 +6,7 @@ Object.defineProperty(exports, "__esModule", { value: true });
 exports.createJobsBulk = exports.getJobsByFreelancer = exports.getJobById = exports.deleteJob = exports.updateJob = exports.getMyJobs = exports.getAllJobs = exports.createJob = void 0;
 const Job_1 = __importDefault(require("../models/Job"));
 // 🚀 Create a new job (freelancer only)
-const createJob = (req, res) => __awaiter(void 0, void 0, void 0, function* () {
+const createJob = async (req, res) => {
     try {
         const { id: freelancerId, role } = req.user;
         if (role !== "freelancer") {
@@ -62,19 +53,19 @@ const createJob = (req, res) => __awaiter(void 0, void 0, void 0, function* () {
             budget: jobType === "Internship" ? stipend : ctc, // Optional compatibility
             postedBy: freelancerId,
         });
-        yield newJob.save();
+        await newJob.save();
         res.status(201).json({ message: "Job posted successfully", job: newJob });
     }
     catch (error) {
         console.error("Create Job Error:", error);
         res.status(500).json({ error: "Failed to create job" });
     }
-});
+};
 exports.createJob = createJob;
 // 📄 Get all jobs (public)
-const getAllJobs = (_req, res) => __awaiter(void 0, void 0, void 0, function* () {
+const getAllJobs = async (_req, res) => {
     try {
-        const jobs = yield Job_1.default.find()
+        const jobs = await Job_1.default.find()
             .sort({ createdAt: -1 })
             .populate("postedBy", "name profilePic");
         res.status(200).json(jobs);
@@ -83,10 +74,10 @@ const getAllJobs = (_req, res) => __awaiter(void 0, void 0, void 0, function* ()
         console.error("Get All Jobs Error:", error);
         res.status(500).json({ error: "Failed to fetch jobs" });
     }
-});
+};
 exports.getAllJobs = getAllJobs;
 // 👨‍💻 Get jobs created by logged-in freelancer
-const getMyJobs = (req, res) => __awaiter(void 0, void 0, void 0, function* () {
+const getMyJobs = async (req, res) => {
     try {
         const { id: freelancerId, role } = req.user;
         console.log("Freelancer ID:", freelancerId);
@@ -94,7 +85,7 @@ const getMyJobs = (req, res) => __awaiter(void 0, void 0, void 0, function* () {
         if (role !== "freelancer") {
             return res.status(403).json({ error: "Access denied: freelancers only" });
         }
-        const jobs = yield Job_1.default.find({ postedBy: freelancerId })
+        const jobs = await Job_1.default.find({ postedBy: freelancerId })
             .sort({ createdAt: -1 })
             .populate("postedBy", "name email profilePic");
         if (!jobs || jobs.length === 0) {
@@ -106,10 +97,10 @@ const getMyJobs = (req, res) => __awaiter(void 0, void 0, void 0, function* () {
         console.error("Get My Jobs Error:", error);
         res.status(500).json({ error: "Failed to fetch jobs", details: error.message });
     }
-});
+};
 exports.getMyJobs = getMyJobs;
 // ✏️ Update a job (freelancer only, own jobs)
-const updateJob = (req, res) => __awaiter(void 0, void 0, void 0, function* () {
+const updateJob = async (req, res) => {
     try {
         const jobId = req.params.id;
         const { id: freelancerId, role } = req.user;
@@ -117,7 +108,7 @@ const updateJob = (req, res) => __awaiter(void 0, void 0, void 0, function* () {
         if (role !== "freelancer") {
             return res.status(403).json({ error: "Only freelancers can update jobs" });
         }
-        const job = yield Job_1.default.findById(jobId);
+        const job = await Job_1.default.findById(jobId);
         if (!job) {
             return res.status(404).json({ error: "Job not found" });
         }
@@ -178,24 +169,24 @@ const updateJob = (req, res) => __awaiter(void 0, void 0, void 0, function* () {
             job.budget = job.ctc;
             job.stipend = undefined;
         }
-        yield job.save();
+        await job.save();
         res.status(200).json({ message: "Job updated successfully", job });
     }
     catch (error) {
         console.error("Update Job Error:", error);
         res.status(500).json({ error: "Failed to update job" });
     }
-});
+};
 exports.updateJob = updateJob;
 // 🗑️ Delete a job (freelancer only, own jobs)
-const deleteJob = (req, res) => __awaiter(void 0, void 0, void 0, function* () {
+const deleteJob = async (req, res) => {
     try {
         const { id: freelancerId, role } = req.user;
         const { jobId } = req.params;
         if (role !== "freelancer") {
             return res.status(403).json({ error: "Only freelancers can delete jobs" });
         }
-        const job = yield Job_1.default.findById(jobId);
+        const job = await Job_1.default.findById(jobId);
         if (!job) {
             return res.status(404).json({ error: "Job not found" });
         }
@@ -205,20 +196,20 @@ const deleteJob = (req, res) => __awaiter(void 0, void 0, void 0, function* () {
         if (job.postedBy.toString() !== freelancerId) {
             return res.status(403).json({ error: "Not authorized to delete this job" });
         }
-        yield job.deleteOne();
+        await job.deleteOne();
         res.status(200).json({ message: "Job deleted successfully" });
     }
     catch (error) {
         console.error("Delete Job Error:", error);
         res.status(500).json({ error: "Failed to delete job" });
     }
-});
+};
 exports.deleteJob = deleteJob;
 // 📄 Get a single job by ID (public)
-const getJobById = (req, res) => __awaiter(void 0, void 0, void 0, function* () {
+const getJobById = async (req, res) => {
     try {
         const { jobId } = req.params;
-        const job = yield Job_1.default.findById(jobId).populate("postedBy", "name profilePic");
+        const job = await Job_1.default.findById(jobId).populate("postedBy", "name profilePic");
         if (!job) {
             return res.status(404).json({ error: "Job not found" });
         }
@@ -228,25 +219,25 @@ const getJobById = (req, res) => __awaiter(void 0, void 0, void 0, function* () 
         console.error("Get Job By ID Error:", error);
         res.status(500).json({ error: "Failed to fetch job" });
     }
-});
+};
 exports.getJobById = getJobById;
 // 🎯 Get jobs by freelancerId (public or dashboard use)
-const getJobsByFreelancer = (req, res) => __awaiter(void 0, void 0, void 0, function* () {
+const getJobsByFreelancer = async (req, res) => {
     try {
         const { freelancerId } = req.params;
         if (!freelancerId) {
             return res.status(400).json({ error: "Freelancer ID is required" });
         }
-        const jobs = yield Job_1.default.find({ postedBy: freelancerId }).sort({ createdAt: -1 });
+        const jobs = await Job_1.default.find({ postedBy: freelancerId }).sort({ createdAt: -1 });
         res.status(200).json(jobs);
     }
     catch (error) {
         console.error("Get Jobs By Freelancer Error:", error);
         res.status(500).json({ error: "Failed to fetch freelancer's jobs" });
     }
-});
+};
 exports.getJobsByFreelancer = getJobsByFreelancer;
-const createJobsBulk = (req, res) => __awaiter(void 0, void 0, void 0, function* () {
+const createJobsBulk = async (req, res) => {
     try {
         const { id: freelancerId, role } = req.user;
         if (role !== "freelancer") {
@@ -271,8 +262,14 @@ const createJobsBulk = (req, res) => __awaiter(void 0, void 0, void 0, function*
             return res.status(400).json({ error: "Some jobs are missing required fields" });
         }
         // Attach freelancerId and budget automatically
-        const jobsToInsert = jobs.map(job => (Object.assign(Object.assign({}, job), { postedBy: freelancerId, budget: job.jobType === "Job" ? job.ctc : job.stipend, stipend: job.jobType === "Internship" ? job.stipend : undefined, ctc: job.jobType === "Job" ? job.ctc : undefined })));
-        const insertedJobs = yield Job_1.default.insertMany(jobsToInsert);
+        const jobsToInsert = jobs.map(job => ({
+            ...job,
+            postedBy: freelancerId,
+            budget: job.jobType === "Job" ? job.ctc : job.stipend,
+            stipend: job.jobType === "Internship" ? job.stipend : undefined,
+            ctc: job.jobType === "Job" ? job.ctc : undefined,
+        }));
+        const insertedJobs = await Job_1.default.insertMany(jobsToInsert);
         res.status(201).json({
             message: `${insertedJobs.length} jobs posted successfully`,
             data: insertedJobs,
@@ -282,5 +279,5 @@ const createJobsBulk = (req, res) => __awaiter(void 0, void 0, void 0, function*
         console.error("Bulk Create Jobs Error:", error);
         res.status(500).json({ error: "Failed to create jobs", details: error.message });
     }
-});
+};
 exports.createJobsBulk = createJobsBulk;

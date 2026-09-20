@@ -1,13 +1,4 @@
 "use strict";
-var __awaiter = (this && this.__awaiter) || function (thisArg, _arguments, P, generator) {
-    function adopt(value) { return value instanceof P ? value : new P(function (resolve) { resolve(value); }); }
-    return new (P || (P = Promise))(function (resolve, reject) {
-        function fulfilled(value) { try { step(generator.next(value)); } catch (e) { reject(e); } }
-        function rejected(value) { try { step(generator["throw"](value)); } catch (e) { reject(e); } }
-        function step(result) { result.done ? resolve(result.value) : adopt(result.value).then(fulfilled, rejected); }
-        step((generator = generator.apply(thisArg, _arguments || [])).next());
-    });
-};
 var __importDefault = (this && this.__importDefault) || function (mod) {
     return (mod && mod.__esModule) ? mod : { "default": mod };
 };
@@ -15,7 +6,7 @@ Object.defineProperty(exports, "__esModule", { value: true });
 exports.sendApplicationStatusMail = void 0;
 const nodemailer_1 = __importDefault(require("nodemailer"));
 // Mailer utility for updating application status
-const sendApplicationStatusMail = (email, jobTitle, jobId, applicationId, status) => __awaiter(void 0, void 0, void 0, function* () {
+const sendApplicationStatusMail = async (email, jobTitle, jobId, applicationId, status) => {
     const subject = `Your Application Status for "${jobTitle}" has been updated`;
     const html = `
   <div style="max-width:600px;margin:auto;padding:20px;font-family:sans-serif;background-color:#f9fafb;border:1px solid #e5e7eb;border-radius:8px;">
@@ -63,11 +54,11 @@ const sendApplicationStatusMail = (email, jobTitle, jobId, applicationId, status
             pass: process.env.MAIL_PASS,
         },
     });
-    yield transporter.sendMail({
+    await transporter.sendMail({
         from: `"WorkBridge" <${process.env.MAIL_USER}>`,
         to: email,
         subject,
         html,
     });
-});
+};
 exports.sendApplicationStatusMail = sendApplicationStatusMail;

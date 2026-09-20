@@ -137,7 +137,7 @@ const ClientSchema = new mongoose_1.Schema({
     }
 });
 // Index for faster queries
-ClientSchema.index({ email: 1 });
+// ClientSchema.index({ email: 1 });
 ClientSchema.index({ role: 1 });
 ClientSchema.index({ 'profile.verified': 1 });
 ClientSchema.index({ createdAt: -1 });

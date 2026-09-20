@@ -694,10 +694,57 @@ interface AuthRequest extends Request {
   };
 }
 
+// In your userController.ts
+export const debugEmail = async (req: Request, res: Response): Promise<void> => {
+  try {
+    const email = req.params.email.toLowerCase();
+    console.log("🔍 Debug email requested for:", email);
+    
+    const otps = await Otp.find({ email }).sort({ createdAt: -1 });
+    
+    // Also check if user exists
+    const user = await Client.findOne({ email });
+    
+    res.status(200).json({
+      success: true,
+      email,
+      userExists: !!user,
+      userData: user ? {
+        id: user._id,
+        name: user.name,
+        email: user.email
+      } : null,
+      otpCount: otps.length,
+      otps: otps.map((o) => ({
+        id: o._id,
+        otp: o.otp,
+        purpose: o.purpose,
+        createdAt: o.createdAt,
+        expiresAt: o.expiresAt,
+        isValid: new Date(o.expiresAt) > new Date(),
+        ageSeconds: Math.floor((Date.now() - new Date(o.createdAt).getTime()) / 1000)
+      })),
+    });
+  } catch (error) {
+    console.error("Debug error:", error);
+    res.status(500).json({ 
+      success: false, 
+      error: String(error) 
+    });
+  }
+};
 // 📩 Send OTP to email
 export const sendOtp = async (req: Request, res: Response): Promise<void> => {
   try {
-    const { email } = req.body;
+    const { email, purpose: requestedPurpose } = req.body;
+    const normalizedEmail = email.toLowerCase().trim();
+
+    console.log("========== DEBUG SEND OTP ==========");
+    console.log("1️⃣ Raw request body:", req.body);
+    console.log("2️⃣ Extracted email:", email);
+    console.log("3️⃣ Extracted purpose:", requestedPurpose);
+    console.log("4️⃣ Purpose type:", typeof requestedPurpose);
+    console.log("5️⃣ Normalized email:", normalizedEmail);
 
     if (!email) {
       res.status(400).json({
@@ -709,7 +756,7 @@ export const sendOtp = async (req: Request, res: Response): Promise<void> => {
 
     // Validate email format
     const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
-    if (!emailRegex.test(email)) {
+    if (!emailRegex.test(normalizedEmail)) {
       res.status(400).json({
         success: false,
         error: "Invalid email format",
@@ -718,52 +765,129 @@ export const sendOtp = async (req: Request, res: Response): Promise<void> => {
     }
 
     // Check if user exists
-    const existingUser = await Client.findOne({ email });
+    console.log("6️⃣ Checking if user exists...");
+    const existingUser = await Client.findOne({ email: normalizedEmail });
+    console.log("7️⃣ User exists?", {
+      exists: !!existingUser,
+      userData: existingUser
+        ? {
+            id: existingUser._id,
+            email: existingUser.email,
+            name: existingUser.name,
+          }
+        : null,
+    });
+
+    // If no user found, check all users in DB
+    if (!existingUser) {
+      console.log("8️⃣ No user found. Listing all users in DB:");
+      const allUsers = await Client.find({}).select("email name").lean();
+      console.log(
+        "All registered emails:",
+        allUsers.map((u) => u.email),
+      );
+    }
+
+    // Determine purpose
+    console.log("9️⃣ Determining purpose...");
+    let purpose: "login" | "register";
+
+    console.log("   requestedPurpose:", requestedPurpose);
+    console.log(
+      "   requestedPurpose in array?",
+      requestedPurpose && ["login", "register"].includes(requestedPurpose),
+    );
+    console.log("   userExists:", !!existingUser);
+
+    if (requestedPurpose && ["login", "register"].includes(requestedPurpose)) {
+      purpose = requestedPurpose;
+      console.log("🔟 Using requested purpose:", purpose);
+    } else {
+      purpose = existingUser ? "login" : "register";
+      console.log("🔟 Auto-detected purpose:", purpose);
+    }
+
+    console.log("1️⃣1️⃣ FINAL PURPOSE:", purpose);
+
+    // Validate purpose vs user existence
+    if (purpose === "register" && existingUser) {
+      console.log("❌ Validation failed: Trying to register existing user");
+      console.log("1️⃣2️⃣ Sending error response: User already exists");
+      res.status(400).json({
+        success: false,
+        error: "User already exists. Please login instead.",
+      });
+      return;
+    }
+
+    if (purpose === "login" && !existingUser) {
+      console.log("❌ Validation failed: Trying to login non-existent user");
+      console.log("1️⃣2️⃣ Sending error response: User not found");
+      res.status(400).json({
+        success: false,
+        error: "User not found. Please register first.",
+      });
+      return;
+    }
+
+    console.log("✅ Validation passed, proceeding with OTP generation");
+    console.log("1️⃣3️⃣ Generating OTP...");
 
     const otp = generateOtp();
-    const expiresAt = otpExpiry();
+    const expiresAt = new Date(Date.now() + 5 * 60 * 1000);
 
-    // Use update with upsert for atomic operation
-    await Otp.findOneAndUpdate(
-      { email },
-      {
-        otp,
-        expiresAt,
-        purpose: existingUser ? "login" : "register",
-      },
-      {
-        upsert: true,
-        new: true,
-      }
-    );
+    // Delete any existing OTPs
+    await Otp.deleteMany({
+      email: normalizedEmail,
+      purpose: purpose,
+    });
 
-    // Try to send OTP email
+    // Create new OTP record
+    const otpRecord = new Otp({
+      email: normalizedEmail,
+      otp: String(otp),
+      purpose: purpose,
+      expiresAt,
+      attempts: 0,
+      createdAt: new Date(),
+    });
+
+    await otpRecord.save();
+    console.log("1️⃣4️⃣ OTP saved:", {
+      email: otpRecord.email,
+      otp: otpRecord.otp,
+      purpose: otpRecord.purpose,
+    });
+
+    // Try to send email
     try {
-      await sendOtpMail(email, otp);
+      console.log("1️⃣5️⃣ Attempting to send email...");
+      await sendOtpMail(normalizedEmail, otp);
 
+      console.log("1️⃣6️⃣ Sending success response with purpose:", purpose);
       res.status(200).json({
         success: true,
         message: "OTP sent to email successfully",
-        email,
-        purpose: existingUser ? "login" : "register",
+        email: normalizedEmail,
+        purpose: purpose,
+        ...(process.env.NODE_ENV === "development" && { otp: String(otp) }),
       });
     } catch (mailError: unknown) {
       console.error("Mail Error:", mailError);
 
-      // For development/testing
       if (process.env.NODE_ENV === "development") {
         res.status(200).json({
           success: true,
-          message: "OTP generated (email service failed in development)",
-          email,
-          otp,
+          message: "OTP generated (email service failed)",
+          email: normalizedEmail,
+          otp: String(otp),
           expiresAt,
-          purpose: existingUser ? "login" : "register",
+          purpose: purpose,
         });
       } else {
         res.status(500).json({
           success: false,
-          error: "Failed to send OTP email",
+          error: "Failed to send OTP email. Please try again.",
         });
       }
     }
@@ -782,10 +906,19 @@ export const sendOtp = async (req: Request, res: Response): Promise<void> => {
 // 📝 Create/Register user
 export const createUser = async (
   req: Request,
-  res: Response
+  res: Response,
 ): Promise<void> => {
   try {
     const { name, gender, email, otp } = req.body;
+    const normalizedEmail = email.toLowerCase().trim();
+
+    console.log("📝 Registration attempt:", {
+      name,
+      gender,
+      email: normalizedEmail,
+      otp: otp,
+      otpType: typeof otp,
+    });
 
     // Validate all fields
     if (!name || !gender || !email || !otp) {
@@ -808,7 +941,7 @@ export const createUser = async (
 
     // Validate email format
     const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
-    if (!emailRegex.test(email)) {
+    if (!emailRegex.test(normalizedEmail)) {
       res.status(400).json({
         success: false,
         error: "Invalid email format",
@@ -816,8 +949,35 @@ export const createUser = async (
       return;
     }
 
-    // Verify OTP
-    const otpRecord = await Otp.findOne({ email, purpose: "register" });
+    // Check if user already exists
+    const existingUser = await Client.findOne({ email: normalizedEmail });
+    if (existingUser) {
+      res.status(409).json({
+        success: false,
+        error: "User already exists. Please login instead.",
+      });
+      return;
+    }
+
+    // IMPORTANT: Get the MOST RECENT OTP for registration
+    const otpRecord = await Otp.findOne({
+      email: normalizedEmail,
+      purpose: "register",
+    }).sort({ createdAt: -1 }); // Get the newest one
+
+    console.log(
+      "📝 Found OTP record:",
+      otpRecord
+        ? {
+            email: otpRecord.email,
+            otp: otpRecord.otp,
+            purpose: otpRecord.purpose,
+            expiresAt: otpRecord.expiresAt,
+            createdAt: otpRecord.createdAt,
+            attempts: otpRecord.attempts,
+          }
+        : "No record found",
+    );
 
     if (!otpRecord) {
       res.status(400).json({
@@ -827,16 +987,13 @@ export const createUser = async (
       return;
     }
 
-    if (otpRecord.otp !== otp) {
-      res.status(401).json({
-        success: false,
-        error: "Invalid OTP",
-      });
-      return;
-    }
+    // Check if OTP is expired
+    if (new Date(otpRecord.expiresAt) < new Date()) {
+      console.log("❌ OTP expired at:", otpRecord.expiresAt);
 
-    if (otpRecord.expiresAt < new Date()) {
-      // Don't delete here, just return error
+      // Delete expired OTP
+      await Otp.deleteOne({ _id: otpRecord._id });
+
       res.status(401).json({
         success: false,
         error: "OTP has expired. Please request a new OTP.",
@@ -844,12 +1001,50 @@ export const createUser = async (
       return;
     }
 
-    // Check if user already exists
-    const existingUser = await Client.findOne({ email });
-    if (existingUser) {
-      res.status(409).json({
+    // CRITICAL FIX: Handle OTP comparison with leading zeros
+    // Convert stored OTP to string
+    const storedOtp = String(otpRecord.otp).trim();
+
+    // Convert provided OTP to string, ensuring leading zeros are preserved
+    let providedOtp: string;
+    if (typeof otp === "number") {
+      // If it's a number, pad with leading zeros to make it 6 digits
+      providedOtp = otp.toString().padStart(6, "0");
+    } else {
+      // If it's already a string, just trim it
+      providedOtp = String(otp).trim();
+    }
+
+    console.log("🔍 OTP Comparison:", {
+      storedOtp,
+      providedOtp,
+      storedType: typeof storedOtp,
+      providedType: typeof providedOtp,
+      storedLength: storedOtp.length,
+      providedLength: providedOtp.length,
+      storedOtpCharCodes: Array.from(storedOtp).map((c) => c.charCodeAt(0)),
+      providedOtpCharCodes: Array.from(providedOtp).map((c) => c.charCodeAt(0)),
+      match: storedOtp === providedOtp,
+    });
+
+    // Increment attempts
+    otpRecord.attempts += 1;
+    await otpRecord.save();
+
+    // Check if max attempts exceeded (optional)
+    if (otpRecord.attempts > 5) {
+      await Otp.deleteOne({ _id: otpRecord._id });
+      res.status(401).json({
         success: false,
-        error: "User already exists. Please login instead.",
+        error: "Too many failed attempts. Please request a new OTP.",
+      });
+      return;
+    }
+
+    if (storedOtp !== providedOtp) {
+      res.status(401).json({
+        success: false,
+        error: "Invalid OTP",
       });
       return;
     }
@@ -858,7 +1053,7 @@ export const createUser = async (
     const user = new Client({
       name,
       gender: gender.toLowerCase(),
-      email,
+      email: normalizedEmail,
       role: "client",
       profileCompleted: false,
       profile: {
@@ -868,11 +1063,13 @@ export const createUser = async (
     });
 
     await user.save();
+    console.log("✅ User created:", user._id);
 
     // Delete used OTP
     await Otp.deleteOne({ _id: otpRecord._id });
+    console.log("✅ OTP deleted");
 
-    // Generate token using your JWT utility
+    // Generate token
     const token = generateToken(user._id.toString(), "client", user.email);
 
     // Set cookie
@@ -907,13 +1104,10 @@ export const createUser = async (
     console.error("Registration Error:", error);
 
     if (error instanceof mongoose.Error.ValidationError) {
-      const validationError = error as mongoose.Error.ValidationError;
       res.status(400).json({
         success: false,
         error: "Validation failed",
-        details: Object.values(validationError.errors).map(
-          (err) => err.message
-        ),
+        details: Object.values(error.errors).map((err) => err.message),
       });
       return;
     }
@@ -942,6 +1136,8 @@ export const loginUser = async (req: Request, res: Response): Promise<void> => {
   try {
     const { email, otp } = req.body;
 
+    console.log("🔐 Login attempt:", { email, otp: otp ? "****" : "missing" });
+
     if (!email || !otp) {
       res.status(400).json({
         success: false,
@@ -951,7 +1147,7 @@ export const loginUser = async (req: Request, res: Response): Promise<void> => {
     }
 
     // Find user
-    const user = await Client.findOne({ email });
+    const user = await Client.findOne({ email: email.toLowerCase() });
     if (!user) {
       res.status(404).json({
         success: false,
@@ -960,8 +1156,24 @@ export const loginUser = async (req: Request, res: Response): Promise<void> => {
       return;
     }
 
-    // Verify OTP
-    const otpRecord = await Otp.findOne({ email, purpose: "login" });
+    // IMPORTANT: Get the MOST RECENT OTP for this email and purpose
+    const otpRecord = await Otp.findOne({
+      email: email.toLowerCase(),
+      purpose: "login",
+    }).sort({ createdAt: -1 }); // Sort by newest first
+
+    console.log(
+      "📝 Found OTP record:",
+      otpRecord
+        ? {
+            email: otpRecord.email,
+            otp: otpRecord.otp,
+            expiresAt: otpRecord.expiresAt,
+            createdAt: otpRecord.createdAt,
+            attempts: otpRecord.attempts,
+          }
+        : "No record found",
+    );
 
     if (!otpRecord) {
       res.status(400).json({
@@ -971,15 +1183,13 @@ export const loginUser = async (req: Request, res: Response): Promise<void> => {
       return;
     }
 
-    if (otpRecord.otp !== otp) {
-      res.status(401).json({
-        success: false,
-        error: "Invalid OTP",
-      });
-      return;
-    }
+    // Check if OTP is expired
+    if (new Date(otpRecord.expiresAt) < new Date()) {
+      console.log("❌ OTP expired at:", otpRecord.expiresAt);
 
-    if (otpRecord.expiresAt < new Date()) {
+      // Delete expired OTP
+      await Otp.deleteOne({ _id: otpRecord._id });
+
       res.status(401).json({
         success: false,
         error: "OTP has expired. Please request a new OTP.",
@@ -987,8 +1197,46 @@ export const loginUser = async (req: Request, res: Response): Promise<void> => {
       return;
     }
 
-    // Delete used OTP
+    // Increment attempts
+    otpRecord.attempts += 1;
+    await otpRecord.save();
+
+    // Check if max attempts exceeded (optional)
+    if (otpRecord.attempts > 5) {
+      await Otp.deleteOne({ _id: otpRecord._id });
+      res.status(401).json({
+        success: false,
+        error: "Too many failed attempts. Please request a new OTP.",
+      });
+      return;
+    }
+
+    // Compare OTP (convert both to string and trim)
+    const providedOtp = String(otp).trim();
+    const storedOtp = String(otpRecord.otp).trim();
+
+    console.log("🔍 OTP Comparison:", {
+      providedOtp,
+      storedOtp,
+      providedType: typeof providedOtp,
+      storedType: typeof storedOtp,
+      providedLength: providedOtp.length,
+      storedLength: storedOtp.length,
+      match: providedOtp === storedOtp,
+      attempts: otpRecord.attempts,
+    });
+
+    if (providedOtp !== storedOtp) {
+      res.status(401).json({
+        success: false,
+        error: "Invalid OTP",
+      });
+      return;
+    }
+
+    // OTP is valid - delete it
     await Otp.deleteOne({ _id: otpRecord._id });
+    console.log("✅ OTP used and deleted");
 
     // Generate token
     const token = generateToken(user._id.toString(), "client", user.email);
@@ -1031,7 +1279,6 @@ export const loginUser = async (req: Request, res: Response): Promise<void> => {
     });
   }
 };
-
 // 🚪 Logout user
 export const logoutUser = (req: Request, res: Response): void => {
   const isProduction = process.env.NODE_ENV === "production";
@@ -1100,7 +1347,7 @@ export const getUser = async (req: Request, res: Response): Promise<void> => {
 // ✏️ Update user profile
 export const updateUser = async (
   req: AuthRequest,
-  res: Response
+  res: Response,
 ): Promise<void> => {
   try {
     const userId = req.user?.id;
@@ -1133,7 +1380,7 @@ export const updateUser = async (
       {
         new: true,
         runValidators: true,
-      }
+      },
     ).select("-__v");
 
     if (!updatedUser) {
@@ -1169,7 +1416,7 @@ export const updateUser = async (
         success: false,
         error: "Profile validation failed",
         details: Object.values(validationError.errors).map(
-          (err) => err.message
+          (err) => err.message,
         ),
       });
       return;
@@ -1185,7 +1432,7 @@ export const updateUser = async (
 // 👥 Get all users
 export const getAllUsers = async (
   req: Request,
-  res: Response
+  res: Response,
 ): Promise<void> => {
   try {
     const users = await Client.find()
@@ -1223,7 +1470,7 @@ export const getAllUsers = async (
 // 📌 User's applied jobs
 export const getClientApplications = async (
   req: AuthRequest,
-  res: Response
+  res: Response,
 ): Promise<void> => {
   try {
     const userId = req.user?.id;
@@ -1262,7 +1509,7 @@ export const getClientApplications = async (
 // 📄 Get user profile by ID
 export const getUserById = async (
   req: Request,
-  res: Response
+  res: Response,
 ): Promise<void> => {
   try {
     const { id } = req.params;
@@ -1313,7 +1560,7 @@ export const getUserById = async (
 // 👤 Get own profile
 export const getProfile = async (
   req: AuthRequest,
-  res: Response
+  res: Response,
 ): Promise<void> => {
   try {
     const userId = req.user?.id;
@@ -1453,7 +1700,7 @@ export const verifyOtp = async (req: Request, res: Response): Promise<void> => {
 // 📱 Get current user
 export const getCurrentUser = async (
   req: AuthRequest,
-  res: Response
+  res: Response,
 ): Promise<void> => {
   try {
     const userId = req.user?.id;
@@ -1514,7 +1761,7 @@ export const cleanupExpiredOtps = async (): Promise<void> => {
 // 🆕 Check if user exists
 export const checkUserExists = async (
   req: Request,
-  res: Response
+  res: Response,
 ): Promise<void> => {
   try {
     const { email } = req.query;
