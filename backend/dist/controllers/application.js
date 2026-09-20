@@ -6,114 +6,41 @@ Object.defineProperty(exports, "__esModule", { value: true });
 exports.updateApplicationStatus = exports.getFreelancerApplications = exports.getClientApplications = exports.applyForJob = void 0;
 const Application_1 = __importDefault(require("../models/Application"));
 const Job_1 = __importDefault(require("../models/Job"));
+const sendApplicationSuccessMail_1 = require("../utils/sendApplicationSuccessMail");
 const ApplicationStatusUpadteMail_1 = require("../utils/ApplicationStatusUpadteMail");
 // Apply for a job
-// export const applyForJob = async (req: any, res: Response) => {
-//   try {
-//     const { id: clientId, email: clientEmail, role } = req.user || {};
-//     const { jobId, proposal } = req.body;
-//     // 🔥 1. AUTH CHECK
-//     if (!clientId) {
-//       return res.status(401).json({ error: "Unauthorized user" });
-//     }
-//     // 🔥 2. SAFE ROLE NORMALIZATION (IMPORTANT FIX)
-//     const userRole = (role || "").toString().toLowerCase().trim();
-//     console.log("🔥 ROLE RECEIVED:", userRole); // DEBUG
-//     if (userRole !== "client") {
-//       return res.status(403).json({
-//         error: "Only clients can apply for jobs",
-//       });
-//     }
-//     // 🔥 3. VALIDATION
-//     if (!jobId || !proposal) {
-//       return res.status(400).json({
-//         error: "JobId and proposal are required",
-//       });
-//     }
-//     // 🔥 4. JOB CHECK
-//     const job = await JobModel.findById(jobId);
-//     if (!job) {
-//       return res.status(404).json({ error: "Job not found" });
-//     }
-//     // 🔥 5. DUPLICATE CHECK
-//     const existingApp = await ApplicationModel.findOne({
-//       jobId,
-//       clientId,
-//     });
-//     if (existingApp) {
-//       return res.status(400).json({
-//         error: "Already applied to this job",
-//       });
-//     }
-//     // 🔥 6. CREATE APPLICATION
-//     const application = await ApplicationModel.create({
-//       jobId,
-//       clientId,
-//       proposal,
-//     });
-//     // 🔥 7. EMAIL
-//     if (clientEmail) {
-//       await sendApplicationSuccessMail(
-//         clientEmail,
-//         job.title,
-//         job.location,
-//         (job.budget ?? 0).toString(),
-//         job.duration,
-//         application._id.toString(),
-//         job._id.toString(),
-//       );
-//     }
-//     return res.status(201).json({
-//       message: "Application submitted successfully",
-//       application,
-//     });
-//   } catch (error) {
-//     console.error("Apply error:", error);
-//     return res.status(500).json({
-//       error: "Internal server error",
-//     });
-//   }
-// };
 const applyForJob = async (req, res) => {
     try {
-        const { id: userId, email } = req.user || {};
+        const clientId = req.user?.id;
+        const clientEmail = req.user?.email;
+        const role = req.user?.role;
         const { jobId, proposal } = req.body;
-        // ONLY LOGIN REQUIRED
-        if (!userId) {
-            return res.status(401).json({ error: "Login required" });
+        if (!clientId || role !== "client") {
+            return res.status(403).json({ error: "Only clients can apply for jobs" });
         }
-        if (!jobId || !proposal) {
-            return res.status(400).json({
-                error: "JobId and proposal are required",
-            });
+        const existingApp = await Application_1.default.findOne({ jobId, clientId });
+        if (existingApp) {
+            return res.status(400).json({ error: "Already applied to this job" });
         }
         const job = await Job_1.default.findById(jobId);
-        if (!job) {
+        if (!job)
             return res.status(404).json({ error: "Job not found" });
-        }
-        const already = await Application_1.default.findOne({
-            jobId,
-            clientId: userId,
-        });
-        if (already) {
-            return res.status(400).json({
-                error: "Already applied",
-            });
-        }
         const application = await Application_1.default.create({
-            jobId,
-            clientId: userId,
+            jobId: job._id,
+            clientId,
             proposal,
         });
-        return res.status(201).json({
-            message: "Applied successfully",
-            application,
-        });
+        if (clientEmail) {
+            await (0, sendApplicationSuccessMail_1.sendApplicationSuccessMail)(clientEmail, job.title, job.location, (job.budget ?? 0).toString(), // ✅ safe default if undefined
+            job.duration, application._id.toString(), // ✅ type cast
+            job._id.toString() // ✅ type cast
+            );
+        }
+        res.status(201).json({ message: "Application submitted", application });
     }
-    catch (err) {
-        return res.status(500).json({
-            error: "Server error",
-        });
+    catch (error) {
+        console.error("Application error:", error);
+        res.status(500).json({ error: "Failed to apply for job" });
     }
 };
 exports.applyForJob = applyForJob;
@@ -141,7 +68,7 @@ const getFreelancerApplications = async (req, res) => {
         if (!freelancerId)
             return res.status(401).json({ error: "Unauthorized" });
         const jobs = await Job_1.default.find({ postedBy: freelancerId }, "_id");
-        const jobIds = jobs.map((j) => j._id);
+        const jobIds = jobs.map(j => j._id);
         const applications = await Application_1.default.find({ jobId: { $in: jobIds } })
             .populate("jobId", "title")
             .populate("clientId", "name email")
@@ -170,9 +97,7 @@ const updateApplicationStatus = async (req, res) => {
         const jobTitle = application.jobId.title;
         const jobId = application.jobId._id;
         await (0, ApplicationStatusUpadteMail_1.sendApplicationStatusMail)(clientEmail, jobTitle, jobId.toString(), application._id.toString(), status);
-        res
-            .status(200)
-            .json({ message: "Application status updated and email sent" });
+        res.status(200).json({ message: "Application status updated and email sent" });
     }
     catch (error) {
         console.error("Error updating application status:", error);

@@ -26,7 +26,7 @@
     "typeRoots": ["./node_modules/@types", "./src/types"],
     "types": ["node", "express"],
     "resolveJsonModule": true,
-    "moduleResolution": "node"
+    // "moduleResolution": "node"
   },
   "include": ["src/**/*"],
   "exclude": ["node_modules", "dist", "**/*.test.ts"]
