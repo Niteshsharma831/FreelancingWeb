@@ -13,9 +13,9 @@ interface IUser {
   role: string;
 }
 
-interface IUserRequest extends Request {
+type IUserRequest = Request & {
   user?: IUser;
-}
+};
 
 // Apply for a job
 export const applyForJob = async (req: IUserRequest, res: Response) => {
