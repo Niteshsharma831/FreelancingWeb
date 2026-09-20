@@ -2,14 +2,18 @@
 import dotenv from 'dotenv';
 import path from 'path';
 import mongoose from 'mongoose';
+import dns from 'dns';
+
+// 🔧 Fix MongoDB Atlas SRV DNS resolution
+dns.setServers(['8.8.8.8', '1.1.1.1']);
 
 // 🔧 Load .env from root directory FIRST
 const envPath = path.resolve(process.cwd(), '.env');
 console.log(`🔍 Loading .env from: ${envPath}`);
 
-const result = dotenv.config({ 
+const result = dotenv.config({
   path: envPath,
-  override: true 
+  override: true
 });
 
 if (result.error) {
@@ -33,17 +37,18 @@ const startServer = async () => {
   try {
     // Dynamically import app to ensure environment variables are loaded
     const { default: app } = await import('./app');
-    
+
     const PORT = process.env.PORT || 5000;
     const MONGO_URI = process.env.MONGO_URI || '';
-    
+
     console.log('🔍 Raw MONGO_URI:', process.env.MONGO_URI);
     console.log('🔍 Cleaned MONGO_URI:', JSON.stringify(process.env.MONGO_URI));
 
     // Connect to MongoDB
     await mongoose.connect(MONGO_URI);
+
     console.log('✅ MongoDB connected');
-    
+
     // Start server
     app.listen(PORT, () => {
       console.log(`🚀 Server running on http://localhost:${PORT}`);
